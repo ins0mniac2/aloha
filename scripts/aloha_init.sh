@@ -27,7 +27,7 @@
 set -x -e
 
 # Read the library
-source ${ALOHA_ROOT?}/bin/aloha_lib.sh
+source ${ALOHA_ROOT?}/scripts/aloha_lib.sh
 
 # Verify all the necessary inputs
 cat <<-BLOCK1
@@ -56,9 +56,10 @@ if [ "$ALOHA_REG_INITTYPE" == "chunk" ]; then
     -omat $WDINIT/mprage_long.mat -out $WDINIT/mprage_fu_to_bl_resliced.nii.gz -dof 9
   c3d_affine_tool -ref $ALOHA_BL_MPRAGE -src $ALOHA_BL_MPRAGE \
     ${WDINIT}/mprage_long.mat -fsl2ras -o ${WDINIT}/mprage_long_RAS.mat
+  c3d_affine_tool ${WDINIT}/mprage_long_RAS.mat -inv -o ${WDINIT}/mprage_long_RAS_inv.mat
   
   # If if we have T2, we need to do more
-  if [[ ALOHA_USE_TSE ]]; then
+  if [[ $ALOHA_USE_TSE ]]; then
     # Make the TSE images isotropic and extract a chunk
     c3d $ALOHA_FU_TSE -resample $ALOHA_TSE_ISO_FACTOR -region $ALOHA_TSE_ISO_REGION_CROP \
       -o ${WDINIT}/tse_fu_iso.nii.gz
@@ -80,8 +81,8 @@ if [ "$ALOHA_REG_INITTYPE" == "chunk" ]; then
         -cost normmi -searchcost normmi -dof 6 -out ${WDINIT}/mprage_to_tse_${tp}_iso_resliced_norange.nii.gz
 
       # Check whether specifying search range did better or not
-      MET=$(c3d ${WDINIT}/tse_${tp}_iso.nii.gz ${WDINIT}/mprage_to_tse_${tp}_iso_resliced.nii.gz -nmi | awk '{print int(1000*$3)}')
-      METNORANGE=$(c3d ${WDINIT}/tse_${tp}_iso.nii.gz ${WDINIT}/mprage_to_tse_${tp}_iso_resliced_norange.nii.gz -nmi | awk '{print int(1000*$3)}')
+      MET=$(c3d_old ${WDINIT}/tse_${tp}_iso.nii.gz ${WDINIT}/mprage_to_tse_${tp}_iso_resliced.nii.gz -nmi | awk '{print int(1000*$3)}')
+      METNORANGE=$(c3d_old ${WDINIT}/tse_${tp}_iso.nii.gz ${WDINIT}/mprage_to_tse_${tp}_iso_resliced_norange.nii.gz -nmi | awk '{print int(1000*$3)}')
 
       if [[ $MET -gt $METNORANGE ]]; then
         rm ${WDINIT}/mprage_to_tse_${tp}_iso_resliced_norange.nii.gz ${WDINIT}/${tp}_mprage_tse_norange.mat
@@ -98,7 +99,10 @@ if [ "$ALOHA_REG_INITTYPE" == "chunk" ]; then
     c3d_affine_tool ${WDINIT}/bl_mprage_tse_RAS.mat  \
       ${WDINIT}/mprage_long_RAS.mat ${WDINIT}/fu_mprage_tse_RAS.mat -inv -o ${WDINIT}/fu_tse_mprage_RAS.mat -mult -o ${WDINIT}/fu_tse_bl_mprage_RAS.mat \
       -mult -o ${WDINIT}/tse_long_RAS.mat
-    c3d_affine_tool -ref $ALOHA_BL_TSE -src $ALOHA_FU_TSE ${WDIR}/tse_long_RAS.mat -ras2fsl -o ${WDINIT}/tse_long.mat
+    c3d_affine_tool -ref $ALOHA_BL_TSE -src $ALOHA_FU_TSE ${WDINIT}/tse_long_RAS.mat -ras2fsl -o ${WDINIT}/tse_long.mat
+    c3d_affine_tool ${WDINIT}/tse_long_RAS.mat -inv ${WDINIT}/tse_long_RAS_inv.mat
+    c3d_affine_tool ${WDINIT}/bl_mprage_tse_RAS.mat -inv -o ${WDINIT}/bl_mprage_tse_RAS_inv.mat
+    c3d_affine_tool ${WDINIT}/bl_mprage_tse_RAS.mat -oitk -o ${WDINIT}/bl_mprage_tse_RAS_itk.txt
 
     #Initial resliced image for QA
     flirt -usesqform -v -ref $ALOHA_BL_TSE  -in $ALOHA_FU_TSE -out ${WDINIT}/resliced_init_flirt.nii.gz -init ${WDINIT}/tse_long.mat -applyxfm

@@ -4,7 +4,7 @@
 #######################################################################
 #
 #  Program:   ALOHA (Automatic Longitudinal Hippocampal Atrophy)
-#  Module:    $Id: aloha_main.sh 101 2014-04-14 17:02:49Z yushkevich $
+#  Module:    $Id$
 #  Language:  BASH Shell Script
 #  Copyright (c) 2014 Sandhitsu R. Das, University of Pennsylvania
 #  
@@ -35,15 +35,16 @@ function usage()
 		required options:
 		  -b image          Filename of baseline 3D gradient echo MRI (ALOHA_BL_MPRAGE, T1w)
 		  -f image          Filename of followup 3D gradient echo MRI (ALOHA_FU_MPRAGE, T1w)
-		  -s image          Filename of hippocampus segmentation of baseline 3D gradient echo MRI (ALOHA_BL_MPSEG)
-                                    Mask 1 = left, Mask 2 = right
+		  -r image          Filename of left hippocampus segmentation of baseline 3D gradient echo MRI (ALOHA_BL_MPSEG_LEFT)
+		  -s image          Filename of right hippocampus segmentation of baseline 3D gradient echo MRI (ALOHA_BL_MPSEG_RIGHT)
 		  -w path           Working/output directory
 
 		optional:
                                     The following three arguments are required for subfield atrophy rates using T2w MRI 
 		  -c image          Filename of baseline 2D focal fast spin echo MRI (ALOHA_BL_TSE, T2w)
 		  -g image          Filename of followup 2D focal fast spin echo MRI  (ALOHA_FU_TSE, T2w)
-		  -t image          Filename of subfield segmentation of baseline baseline 2D focal fast spin echo MRI (ALOHA_BL_TSESEG)
+		  -t image          Filename of left subfield segmentation of baseline 2D focal fast spin echo MRI (ALOHA_BL_TSESEG_LEFT)
+		  -u image          Filename of right subfield segmentation of baseline 2D focal fast spin echo MRI (ALOHA_BL_TSESEG_RIGHT)
 
 		  -d                Enable debugging
 		  -h                Print help
@@ -95,22 +96,26 @@ if [[ $# -lt 1 ]]; then
   exit 2
 fi
 
+
 # Clear the variables affected by the flags
 unset ALOHA_MPRAGE ALOHA_TSE ALOHA_WORK STAGE_SPEC
 unset ALOHA_SKIP_ANTS ALOHA_SKIP_RIGID ALOHA_TIDY ALOHA_SUBJID
 unset ALOHA_USE_QSUB ALOHA_SEG_LEFT ALOHA_SEG_RIGHT 
+unset ALOHA_BL_TSE ALOHA_BL_MPRAGE ALOHA_FU_TSE ALOHA_FU_MPRAGE ALOHA_BL_MPSEG_LEFT ALOHA_BL_TSESEG_LEFT ALOHA_BL_MPSEG_RIGHT ALOHA_BL_TSESEG_RIGHT ALOHA_USE_TSE
 
 # Read the options
-while getopts "b:f:s:w:c:g:t:dh" opt; do
+while getopts "b:f:r:s:t:u:w:c:g:dh" opt; do
   case $opt in
 
     b) ALOHA_BL_MPRAGE=$(readlink -f $OPTARG);;
     f) ALOHA_FU_MPRAGE=$(readlink -f $OPTARG);;
-    s) ALOHA_BL_MPSEG=$(readlink -f $OPTARG);;
+    r) ALOHA_BL_MPSEG_LEFT=$(readlink -f $OPTARG);;
+    s) ALOHA_BL_MPSEG_RIGHT=$(readlink -f $OPTARG);;
     w) ALOHA_WORK=$(readlink -f $OPTARG);;
     c) ALOHA_BL_TSE=$(readlink -f $OPTARG);;
     g) ALOHA_FU_TSE=$(readlink -f $OPTARG);;
-    t) ALOHA_BL_TSESEG=$(readlink -f $OPTARG);;
+    t) ALOHA_BL_TSESEG_LEFT=$(readlink -f $OPTARG);;
+    u) ALOHA_BL_TSESEG_RIGHT=$(readlink -f $OPTARG);;
     d) set -x -e;;
     h) usage; exit 0;;
     \?) echo "Unknown option $OPTARG"; exit 2;;
@@ -130,32 +135,31 @@ fi
 
 # Set the config file
 if [[ ! $ALOHA_CONFIG ]]; then
-  ALOHA_CONFIG=$ALOHA_ROOT/bin/aloha_config.sh
+  ALOHA_CONFIG=$ALOHA_ROOT/scripts/aloha_config.sh
 fi
 
 # Load the library. This also processes the config file
-source $ALOHA_ROOT/bin/aloha_lib.sh
+source $ALOHA_ROOT/scripts/aloha_lib.sh
 
 # Check if the required parameters were passed in
-echo "Atlas    : ${ATLAS?    "Directory for atlas was not specified. See $0 -h"}
-echo "T1 Image : ${ALOHA_MPRAGE?   "T1-weighted MRI was not specified. See $0 -h"}
-echo "T2 Image : ${ALOHA_TSE?      "T2-weighted MRI was not specified. See $0 -h"}
-echo "WorkDir  : ${ALOHA_WORK?     "Working directory was not specified. See $0 -h"}
+echo "T1 baseline Image : ${ALOHA_BL_MPRAGE?   "Baseline T1-weighted MRI was not specified. See $0 -h"}"
+echo "T1 followup Image : ${ALOHA_FU_MPRAGE?   "Followup T1-weighted MRI was not specified. See $0 -h"}"
+echo "T1 baseline mask  : ${ALOHA_BL_MPSEG_LEFT?   "Baseline T1-weighted MRI left segmentation was not specified. See $0 -h"}"
+echo "T1 baseline mask  : ${ALOHA_BL_MPSEG_RIGHT?   "Baseline T1-weighted MRI right segmentation was not specified. See $0 -h"}"
+echo "WorkDir  : ${ALOHA_WORK?     "Working directory was not specified. See $0 -h"}"
 
-# Handle the -r parameter
-if [[ $ALOHA_REFSEG_LIST ]]; then
-  if [[ ${#ALOHA_REFSEG_LIST[*]} -eq 2 ]]; then
-    ALOHA_REFSEG_LEFT=$(readlink -f ${ALOHA_REFSEG_LIST[0]})
-    ALOHA_REFSEG_RIGHT=$(readlink -f ${ALOHA_REFSEG_LIST[1]})
-    if [[ ! -f $ALOHA_REFSEG_LEFT || ! -f $ALOHA_REFSEG_RIGHT ]]; then
-      echo "Reference segmentation $ALOHA_REFSEG_LEFT $ALOHA_REFSEG_RIGHT not found"
-      exit -2
-    fi
-  else
-    echo "Wrong number of parameters to -r option"
-  fi
+# Check if T2 pipeline is needed
+if [[ $ALOHA_BL_TSE || $ALOHA_FU_TSE || $ALOHA_BL_TSESEG_LEFT || $ALOHA_BL_TSESEG_RIGHT ]]; then
+  echo "T2 baseline Image : ${ALOHA_BL_TSE?   "Baseline T2-weighted MRI was not specified. See $0 -h"}"
+  echo "T2 followup Image : ${ALOHA_FU_TSE?   "Followup T2-weighted MRI was not specified. See $0 -h"}"
+  echo "T2 baseline mask left : ${ALOHA_BL_TSESEG_LEFT?   "Baseline T2-weighted MRI left segmentation was not specified. See $0 -h"}"
+  echo "T2 baseline mask right : ${ALOHA_BL_TSESEG_RIGHT?   "Baseline T2-weighted MRI right segmentation was not specified. See $0 -h"}"
+  ALOHA_USE_TSE=true;
 fi
 
+
+# TODO provide qsub as optional
+# ALOHA_USE_QSUB=1
 # Whether we are using QSUB
 if [[ $ALOHA_USE_QSUB ]]; then
   if [[ ! $SGE_ROOT ]]; then
@@ -174,38 +178,56 @@ if [[ ! -d $ALOHA_WORK ]]; then
   echo "Work directory $ALOHA_WORK does not exist";
 fi
 
-# Check the atlas location
-if [[ -f $ATLAS/aloha_atlas_vars.sh ]]; then
-  ALOHA_ATLAS=$ATLAS;
-elif [[ -f $ALOHA_ROOT/data/$ATLAS/aloha_atlas_vars.sh ]]; then
-  ALOHA_ATLAS=$ALOHA_ROOT/data/$ATLAS
-else
-  echo "Atlas directory must be specified"
-  exit 2;
-fi
-
-# Check the heuristics in the atlas
-if [[ -f $ALOHA_ATLAS/aloha_heuristics.txt ]]; then
-	ALOHA_HEURISTICS=$ALOHA_ATLAS/aloha_heuristics.txt
-fi
-
 # Make sure all files exist
-if [[ ! $ALOHA_MPRAGE || ! -f $ALOHA_MPRAGE ]]; then
-	echo "T1-weighted 3D gradient echo MRI (-g) must be specified"
+if [[ ! $ALOHA_BL_MPRAGE || ! -f $ALOHA_BL_MPRAGE ]]; then
+	echo "Baseline T1-weighted 3D gradient echo MRI (-b) must be specified"
 	exit 2;
-elif [[ ! $ALOHA_TSE || ! -f $ALOHA_TSE ]]; then
-	echo "T2-weighted 2D fast spin echo MRI (-f) must be specified"
+elif [[ ! $ALOHA_FU_MPRAGE || ! -f $ALOHA_FU_MPRAGE ]]; then
+	echo "Followup T1-weighted 3D gradient echo MRI (-f) must be specified"
+	exit 2;
+elif [[ ! $ALOHA_BL_MPSEG_LEFT || ! -f $ALOHA_BL_MPSEG_LEFT ]]; then
+	echo "Baseline T1-weighted 3D gradient echo MRI left segmentation (-s) must be specified"
+	exit 2;
+elif [[ ! $ALOHA_BL_MPSEG_RIGHT || ! -f $ALOHA_BL_MPSEG_RIGHT ]]; then
+	echo "Baseline T1-weighted 3D gradient echo MRI right segmentation (-s) must be specified"
 	exit 2;
 elif [[ ! $ALOHA_WORK ]]; then
 	echo "Working/output directory must be specified"
 	exit 2;
 fi
 
-# Check that the dimensions of the T2 image are right
-DIMS=$(c3d $ALOHA_TSE -info | cut -d ';' -f 1 | sed -e "s/.*\[//" -e "s/\].*//" -e "s/,//g")
-if [[ ${DIMS[2]} > ${DIMS[0]} || ${DIMS[2]} > ${DIMS[1]} ]]; then
-  echo "The T2-weighted image has wrong dimensions (fails dim[2] < min(dim[0], dim[1])"
-  exit -1
+if [[ $ALOHA_BL_TSE || $ALOHA_FU_TSE || $ALOHA_BL_TSESEG ]]; then
+  if [[ ! $ALOHA_BL_TSE || ! -f $ALOHA_BL_TSE ]]; then
+	echo "Baseline T2-weighted 2D fast spin echo MRI (-c) must be specified"
+	exit 2;
+  elif [[ ! $ALOHA_FU_TSE || ! -f $ALOHA_FU_TSE ]]; then
+	echo "Followup T2-weighted 2D fast spin echo MRI (-g) must be specified"
+	exit 2;
+  elif [[ ! $ALOHA_BL_TSESEG_LEFT || ! -f $ALOHA_BL_TSESEG_LEFT ]]; then
+	echo "Baseline T2-weighted 2D fast spin echo MRI left segmentation (-t) must be specified"
+	exit 2;
+  elif [[ ! $ALOHA_BL_TSESEG_RIGHT|| ! -f $ALOHA_BL_TSESEG_RIGHT ]]; then
+	echo "Baseline T2-weighted 2D fast spin echo MRI right segmentation (-t) must be specified"
+	exit 2;
+  fi
+fi
+
+if [[ $ALOHA_BL_TSE ]]; then
+  # Check that the dimensions of the T2 image are right
+  DIMS=$(c3d $ALOHA_BL_TSE -info | cut -d ';' -f 1 | sed -e "s/.*\[//" -e "s/\].*//" -e "s/,//g")
+  if [[ ${DIMS[2]} > ${DIMS[0]} || ${DIMS[2]} > ${DIMS[1]} ]]; then
+    echo "The baseline T2-weighted image has wrong dimensions (fails dim[2] < min(dim[0], dim[1])"
+    exit -1
+  fi
+fi
+
+if [[ $ALOHA_FU_TSE ]]; then
+  # Check that the dimensions of the T2 image are right
+  DIMS=$(c3d $ALOHA_BL_TSE -info | cut -d ';' -f 1 | sed -e "s/.*\[//" -e "s/\].*//" -e "s/,//g")
+  if [[ ${DIMS[2]} > ${DIMS[0]} || ${DIMS[2]} > ${DIMS[1]} ]]; then
+    echo "The baseline T2-weighted image has wrong dimensions (fails dim[2] < min(dim[0], dim[1])"
+    exit -1
+  fi
 fi
 
 # Subject ID set to work dir last work
@@ -219,13 +241,14 @@ mkdir -p $ALOHA_WORK $ALOHA_WORK/dump $ALOHA_WORK/final
 # Run the stages of the script
 export ALOHA_ROOT ALOHA_WORK ALOHA_SKIP_ANTS ALOHA_SKIP_RIGID ALOHA_SUBJID ALOHA_CONFIG ALOHA_ATLAS
 export ALOHA_HEURISTICS ALOHA_TIDY ALOHA_MPRAGE ALOHA_TSE ALOHA_REFSEG_LEFT ALOHA_REFSEG_RIGHT QOPTS
+export ALOHA_BL_TSE ALOHA_BL_MPRAGE ALOHA_FU_TSE ALOHA_FU_MPRAGE ALOHA_BL_MPSEG_LEFT ALOHA_BL_TSESEG_LEFT ALOHA_BL_MPSEG_RIGHT ALOHA_BL_TSESEG_RIGHT ALOHA_USE_TSE
 
 # Set the start and end stages
 if [[ $STAGE_SPEC ]]; then
   STAGE_START=$(echo $STAGE_SPEC | awk -F '-' '$0 ~ /^[0-9]+-*[0-9]*$/ {print $1}')
   STAGE_END=$(echo $STAGE_SPEC | awk -F '-' '$0 ~ /^[0-9]+-*[0-9]*$/ {print $NF}')
 else
-  STAGE_START=1
+  STAGE_START=2
   STAGE_END=15
 fi
 
@@ -234,28 +257,24 @@ if [[ ! $STAGE_END || ! $STAGE_START ]]; then
   exit -1;
 fi
 
-# Get the number of atlases, other information
-source $ALOHA_ATLAS/aloha_atlas_vars.sh
-
 # List of sides for the array qsub commands below
 SIDES="left right"
 
-# List of training atlases 
-TRIDS=$(for((i = 0; i < $ALOHA_ATLAS_N; i++)); do echo $(printf "%03i" $i); done)
-
+# TEMP
+STAGE_END=2
 for ((STAGE=$STAGE_START; STAGE<=$STAGE_END; STAGE++)); do
 
   case $STAGE in 
 
     1) 
-    # Template matching
-    echo "Running stage 1: normalize to T1 population template"
-    qsubmit_sync "aloha_stg1" $ALOHA_ROOT/bin/aloha_template_qsub.sh ;;
+    # Initialize registration
+    echo "Running stage 1: Initial alignment and bookkeeeping"
+    qsubmit_sync "aloha_stg1" $ALOHA_ROOT/scripts/aloha_init.sh ;;
 
     2) 
-    # Multi-atlas matching 
-    echo "Running stage 2: normalize to multiple T1/T2 atlases"
-    qsubmit_double_array "aloha_stg2" "$SIDES" "$TRIDS" $ALOHA_ROOT/bin/aloha_multiatlas_qsub.sh ;;
+    # Global alignment
+    echo "Running stage 2: Global alignment"
+    qsubmit_single_array "aloha_stg2"  "$SIDES" $ALOHA_ROOT/scripts/aloha_global.sh ;;
 
     3) 
     # Voting

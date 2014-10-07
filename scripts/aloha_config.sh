@@ -30,7 +30,7 @@
 #
 # This file contains default settings for ALOHA. Users can make a copy of this
 # file and change parameters to better suit their data. To use this file, make
-# a copy of the $ALOHA_ROOT/bin/aloha_config.sh, edit the copy, and pass the
+# a copy of the $ALOHA_ROOT/scripts/aloha_config.sh, edit the copy, and pass the
 # copy to the aloha_main script using the -C flag. TODO
 
 # ---------------------------------
@@ -59,7 +59,7 @@ ALOHA_TSE_ISO_REGION_CROP="20x20x0% 60x60x100%"
 # rigid alignment of T1 and T2 is failing. You can always override the results
 # for any given image manually by performing the registration yourself and
 # calling ALOHA with the -N flag (to not rerun existing registrations)
-ALOHA_FLIRT_MULTIMODAL_OPTS="-searchrx -5 5 -searchry -5 5 -searchrz -5 5 -coarsesearch 3 -finesearch 1 -searchcost normmi"
+ALOHA_FLIRT_MULTIMODAL_OPTS="-searchrx -5 5 -searchry -5 5 -searchrz -5 5 -coarsesearch 3 -finesearch 1"
 
 # ------------------------------------------------
 # ALOHA_REG general longitudinal registration parameters
@@ -74,7 +74,7 @@ ALOHA_REG_DEFTYPE_TSE=2
 ALOHA_REG_INITTYPE="chunk" # How the initial alignment is done DO NOT CHANGE
 ALOHA_REG_USEMASK=1 # DO NOT CHANGE
 ALOHA_REG_USEDEFMASK=1 # DO NOT CHANGE
-ALOHA_REG_MASKRAD=1 # DO NOT CHANGE
+ALOHA_REG_MASKRAD=3 # DO NOT CHANGE
 ALOHA_REG_RESAMPLE="0" # DO NOT CHANGE
 ALOHA_REG_RFIT=0 # DO NOT CHANGE
 ALOHA_REG_ASTEPSIZE=0.25 # DO NOT CHANGE

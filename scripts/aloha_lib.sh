@@ -37,8 +37,7 @@ fi
 # Get the architecture and check ability to run binaries
 ARCH=$(uname);
 ALOHA_BIN=$ALOHA_ROOT/ext/$ARCH/bin
-#ALOHA_ANTS=$ALOHA_BIN/ants
-ALOHA_ANTS=$ALOHA_BIN/ants_1042
+ALOHA_ANTS=$ALOHA_BIN/ants
 ALOHA_FSL=$ALOHA_BIN/fsl
 if [[ ! $($ALOHA_BIN/c3d -version | grep 'Version') ]]; then
   echo "Can not execute command \'$ALOHA_BIN/c3d -version\'. Wrong architecture?"
@@ -52,8 +51,8 @@ export PATH=$ALOHA_BIN:$ALOHA_ANTS:$ALOHA_FSL:$PATH
 
 
 # If a custom config file specified, first read the default config file
-if [[ ! ${ALOHA_CONFIG?} == ${ALOHA_ROOT?}/bin/aloha_config.sh ]]; then
-  source ${ALOHA_ROOT?}/bin/aloha_config.sh
+if [[ ! ${ALOHA_CONFIG?} == ${ALOHA_ROOT?}/scripts/aloha_config.sh ]]; then
+  source ${ALOHA_ROOT?}/scripts/aloha_config.sh
 fi
 
 # Read the config file
