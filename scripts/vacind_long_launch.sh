@@ -15,7 +15,7 @@ ROOT=${HOME}/wd/Pfizer/VACIND
 # t1nathires: t1 rigid, rigid native, def hires
 
 if [ $# -lt 8 ]; then
-  echo "Usage: $0 REGTYPE GLOBALREGPROG DEFREGPROG SYMMTYPE DEFTYPE FUTIMEPOINT BLTIMEPOINT SIDE [SUBJECT]"
+  echo "Usage: $0 REGTYPE GLOBALREGPROG SYMMTYPE DEFTYPE FUTIMEPOINT BLTIMEPOINT SIDE [SUBJECT]"
   echo "./vacind_long_launch.sh chunk flirt ants asym 2 T04 T01 L [ID]"
   exit -1
 fi

@@ -4,6 +4,7 @@ if [ -z $TMPDIR ]; then
 fi
 export side MODALITY GLOBALRIGIDPROG RIGIDMODE ASTEPSIZE METRIC GLOBALREGPROG USEMASK SYMMTYPE REGTYPE USEDEFMASK DEFREGPROG REGUL1 REGUL2 TMPDIR
 
+echo starting script $0
 
 FSLOUTPUTTYPE=NIFTI_GZ
 BIN_ANTS=~srdas/bin/ants_avants
@@ -23,8 +24,8 @@ if [ "$INITTYPE" == "chunk" ]; then
     fi 
   else
     echo "Skipping global initialization, already present"
-      echo "Not skipping: Running whole brain global initialization"
-      source ${ROOT}/scripts/bash/vacind_long_rigid_chunkinit.sh
+#      echo "Not skipping: Running whole brain global initialization"
+#      source ${ROOT}/scripts/bash/vacind_long_rigid_chunkinit.sh
   fi
   fi
 
@@ -119,7 +120,7 @@ mkdir -p $WDDIR
 
       # Check if mask contains the whole segmentation
       maxdiff=`c3d  $BLSEG -trim 16mm -thresh 1 inf 1 0 -as M $WRDIR/bltrimdef.nii.gz -push M -reslice-identity \
-        -trim 10mm -binarize -scale -1 \
+        -binarize -scale -1 \
         -add -info-full   | grep "Intensity Range" | sed -e 's/]//g' | awk -F ',' {'print $2'}`
       if [ $maxdiff -lt 0 ]; then
         echo "mask doesn't contain the whole segmentation"

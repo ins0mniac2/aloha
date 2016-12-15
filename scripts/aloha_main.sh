@@ -47,42 +47,21 @@ function usage()
 		  -u image          Filename of right subfield segmentation of baseline 2D focal fast spin echo MRI (ALOHA_BL_TSESEG_RIGHT)
 
 		  -d                Enable debugging
-		  -h                Print help
-
-******************** TODO below this ****************
-		  -s integer        Run only one stage (see below); also accepts range (e.g. -s 1-3)
-		  -N                No overriding of ANTS/FLIRT results. If a result from an earlier run
-		                    exists, don't run ANTS/FLIRT again
-		  -T                Tidy mode. Cleans up files once they are unneeded. The -N option will
-		                    have no effect in tidy mode, because ANTS/FLIRT results will be erased.
-		  -I string         Subject ID (for stats output). Defaults to last word of working dir.
-		  -V                Display version information and exit
-		  -C file           Configuration file. If not passed, uses $ALOHA_ROOT/bin/aloha_config.sh
 		  -Q                Use Sun Grid Engine (SGE) to schedule sub-tasks in each stage. By default,
 		                    the whole aloha_main job runs in a single process. If you are doing a lot
 		                    of segmentations and have SGE, it is better to run each segmentation 
 		                    (aloha_main) in a separate SGE job, rather than use the -q flag. The -q flag
 		                    is best for when you have only a few segmentations and want them to run fast.
 		  -q OPTS           Pass in additional options to SGE's qsub. Also enables -Q option above.
-		  -r files          Compare segmentation results with a reference segmentation. The parameter
-		                    files should consist of two nifti files in quotation marks:
-
-		                      -r "ref_seg_left.nii.gz ref_seg_right.nii.gz"
-                        
-		                    The results will include overlap calculations between different
-		                    stages of the segmentation and the reference segmentation. Note that the
-		                    comparison takes into account the heuristic rules specified in the altas, so
-		                    it is not as simple as computing dice overlaps between the reference seg
-		                    and the ALOHA segs.
+		  -t integer        Run only one stage (see below); also accepts range (e.g. -s 1-3)
+		  -h                Print help
 
 		stages:
-		  1:                fit to population template
-		  2:                multi-atlas registration
-		  3:                consensus segmentation using voting
-		  4:                bootstrap registration
-		  5:                bootstrap segmentation using voting
-		  6:                segmentation Q/A
-		  7:                volumes and statistics
+		  1:                Set up data and initial alignemnt
+		  2:                Global registration
+		  3:                Deformable registration
+		  4:                Measure change with DBM
+
 
 		notes:
 		  The ALOHA_TSE image slice direction should be z. In other words, the dimension
@@ -104,7 +83,7 @@ unset ALOHA_USE_QSUB ALOHA_SEG_LEFT ALOHA_SEG_RIGHT
 unset ALOHA_BL_TSE ALOHA_BL_MPRAGE ALOHA_FU_TSE ALOHA_FU_MPRAGE ALOHA_BL_MPSEG_LEFT ALOHA_BL_TSESEG_LEFT ALOHA_BL_MPSEG_RIGHT ALOHA_BL_TSESEG_RIGHT ALOHA_USE_TSE
 
 # Read the options
-while getopts "b:f:r:s:t:u:w:c:g:dh" opt; do
+while getopts "b:f:r:s:t:u:w:c:g:q:z:dhQ" opt; do
   case $opt in
 
     b) ALOHA_BL_MPRAGE=$(readlink -f $OPTARG);;
@@ -114,10 +93,13 @@ while getopts "b:f:r:s:t:u:w:c:g:dh" opt; do
     w) ALOHA_WORK=$(readlink -f $OPTARG);;
     c) ALOHA_BL_TSE=$(readlink -f $OPTARG);;
     g) ALOHA_FU_TSE=$(readlink -f $OPTARG);;
+    z) STAGE_SPEC=$OPTARG ;;
     t) ALOHA_BL_TSESEG_LEFT=$(readlink -f $OPTARG);;
     u) ALOHA_BL_TSESEG_RIGHT=$(readlink -f $OPTARG);;
-    d) set -x -e;;
+    d) set -x -e;;    
     h) usage; exit 0;;
+    q) ALOHA_USE_QSUB=1; QOPTS=$OPTARG;;
+    Q) ALOHA_USE_QSUB=1;;
     \?) echo "Unknown option $OPTARG"; exit 2;;
     :) echo "Option $OPTARG requires an argument"; exit 2;;
 
@@ -129,7 +111,7 @@ if [[ ! $ALOHA_ROOT ]]; then
   echo "Please set ALOHA_ROOT to the ALOHA root directory before running $0"
   exit -2
 elif [[ $ALOHA_ROOT != $(readlink -f $ALOHA_ROOT) ]]; then
-  echo "ALOHA_ROOT must point to an absolute path, not a relative path"
+  echo "ALOHA_ROOT must point to an absolute path, not a relative path, nor a symlink"
   exit -2
 fi
 
@@ -189,6 +171,7 @@ elif [[ ! $ALOHA_BL_MPSEG_LEFT || ! -f $ALOHA_BL_MPSEG_LEFT ]]; then
 	echo "Baseline T1-weighted 3D gradient echo MRI left segmentation (-s) must be specified"
 	exit 2;
 elif [[ ! $ALOHA_BL_MPSEG_RIGHT || ! -f $ALOHA_BL_MPSEG_RIGHT ]]; then
+        echo "File is $ALOHA_BL_MPSEG_RIGHT"
 	echo "Baseline T1-weighted 3D gradient echo MRI right segmentation (-s) must be specified"
 	exit 2;
 elif [[ ! $ALOHA_WORK ]]; then
@@ -248,8 +231,8 @@ if [[ $STAGE_SPEC ]]; then
   STAGE_START=$(echo $STAGE_SPEC | awk -F '-' '$0 ~ /^[0-9]+-*[0-9]*$/ {print $1}')
   STAGE_END=$(echo $STAGE_SPEC | awk -F '-' '$0 ~ /^[0-9]+-*[0-9]*$/ {print $NF}')
 else
-  STAGE_START=2
-  STAGE_END=15
+  STAGE_START=1
+  STAGE_END=4
 fi
 
 if [[ ! $STAGE_END || ! $STAGE_START ]]; then
@@ -261,14 +244,15 @@ fi
 SIDES="left right"
 
 # TEMP
-STAGE_END=2
+# STAGE_START=3
+# STAGE_END=3
 for ((STAGE=$STAGE_START; STAGE<=$STAGE_END; STAGE++)); do
 
   case $STAGE in 
 
     1) 
     # Initialize registration
-    echo "Running stage 1: Initial alignment and bookkeeeping"
+    echo "Running stage 1: Initial alignment and bookkeeping"
     qsubmit_sync "aloha_stg1" $ALOHA_ROOT/scripts/aloha_init.sh ;;
 
     2) 
@@ -277,14 +261,14 @@ for ((STAGE=$STAGE_START; STAGE<=$STAGE_END; STAGE++)); do
     qsubmit_single_array "aloha_stg2"  "$SIDES" $ALOHA_ROOT/scripts/aloha_global.sh ;;
 
     3) 
-    # Voting
-    echo "Running stage 3: Label Fusion"
-    qsubmit_single_array "aloha_stg3" "$SIDES" $ALOHA_ROOT/bin/aloha_voting_qsub.sh 0 ;;
+    # Deformable registration
+    echo "Running stage 3: Deformable registration"
+    qsubmit_single_array "aloha_stg3" "$SIDES" $ALOHA_ROOT/scripts/aloha_deformable.sh ;;
 
     4)
-    # Bootstrapping
-    echo "Running stage 4: Bootstrap segmentation"
-    qsubmit_double_array "aloha_stg4" "$SIDES" "$TRIDS" $ALOHA_ROOT/bin/aloha_bootstrap_qsub.sh ;;
+    # Measurement
+    echo "Running stage 4: Measuring longitudinal change"
+    qsubmit_single_array "aloha_stg4" "$SIDES"  $ALOHA_ROOT/scripts/aloha_measure.sh ;;
 
     5)
     # Bootstrap voting

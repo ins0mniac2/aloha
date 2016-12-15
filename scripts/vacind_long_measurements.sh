@@ -59,187 +59,193 @@ RESFILE=${WDDIR}/imwarp_longvol_${DEFTYPE}d.txt
 rm -f $RESFILE
 # Jacobian based long volume calculation
 JACRESFILE=${WDDIR}/jac_longvol_${DEFTYPE}d.txt
-rm -f $JACRESFILE
-# tmpdir=`mktemp -d`
-tmpdir=${WDDIR}/debug1_${side}_${DEFTYPE}d
-# rm -rf $tmpdir
- mkdir -p $tmpdir
- rm -f $tmpdir/*
-tmpdir=$TMPDIR
+  rm -f $JACRESFILE
+  # tmpdir=`mktemp -d`
+  tmpdir=${WDDIR}/debug1_${side}_${DEFTYPE}d
+  # rm -rf $tmpdir
+   mkdir -p $tmpdir
+   rm -f $tmpdir/*
+#  tmpdir=$TMPDIR
 
-BLSPACE=${WDDIR}/bltrimdef.nii.gz
-HWSPACE=${WDDIR}/hwtrimdef.nii.gz
-FUSPACE=${WDDIR}/futrim_om.nii.gz
-FUORIGSPACE=${WDDIR}/futrim.nii.gz
-MESHTRIM=2
-MESHRES=500
-BLTSESEG=$BLSEG
-if [ "$MODALITY" == "MPRAGE" ]; then
-  MESHTRIM=10
-  MESHRES=100
-  # T1 subfield estimation
-  if [ "$DOMPSUB" == "1" ]; then
-    BLSEG=$BLMPSUBSEG
-    BLSPACE=$BLMPSUBSEG
-    c3d $HWSPACE -resample 500% -o ${tmpdir}/hwspace.nii.gz
-    c3d $FUSPACE -resample 500% -o ${tmpdir}/fuspace.nii.gz
-    HWSPACE=${tmpdir}/hwspace.nii.gz
-    FUSPACE=${tmpdir}/fuspace.nii.gz
-    cp $BLSEG $tmpdir/blseg.nii.gz
-  else  
-    if $ALTMODESEG; then
-      BLSEG=$BLTSESEG
-      c3d $BLSEG $WDDIR/futrimdef_om_to_bltrim_warped_3d.nii.gz -interp NN -reslice-identity $BLSEG -times -o $tmpdir/blseg.nii.gz
-    else
-      BLSEG=$BLMPSEG
-      FUSEG=$FUMPSEG
-      cp $BLSEG $tmpdir/blseg.nii.gz
-    fi
-    if $USENATIVE; then
-      echo "Measuring in native T1 space"
-    else
-      echo "Measuring in highres/pm T1 space"
+  BLSPACE=${WDDIR}/bltrimdef.nii.gz
+  HWSPACE=${WDDIR}/hwtrimdef.nii.gz
+  FUSPACE=${WDDIR}/futrim_om.nii.gz
+  FUORIGSPACE=${WDDIR}/futrim.nii.gz
+  MESHTRIM=2
+  MESHRES=500
+  BLTSESEG=$BLSEG
+  if [ "$MODALITY" == "MPRAGE" ]; then
+    MESHTRIM=10
+    MESHRES=100
+    # T1 subfield estimation
+    if [ "$DOMPSUB" == "1" ]; then
+      BLSEG=$BLMPSUBSEG
       BLSPACE=$BLMPSUBSEG
       c3d $HWSPACE -resample 500% -o ${tmpdir}/hwspace.nii.gz
       c3d $FUSPACE -resample 500% -o ${tmpdir}/fuspace.nii.gz
       HWSPACE=${tmpdir}/hwspace.nii.gz
       FUSPACE=${tmpdir}/fuspace.nii.gz
+      cp $BLSEG $tmpdir/blseg.nii.gz
+    else  
+      if $ALTMODESEG; then
+        BLSEG=$BLTSESEG
+        c3d $BLSEG $WDDIR/futrimdef_om_to_bltrim_warped_3d.nii.gz -interp NN -reslice-identity $BLSEG -times -o $tmpdir/blseg.nii.gz
+      else
+        BLSEG=$BLMPSEG
+        FUSEG=$FUMPSEG
+        cp $BLSEG $tmpdir/blseg.nii.gz
+      fi
+      if $USENATIVE; then
+        echo "Measuring in native T1 space"
+      else
+        echo "Measuring in highres/pm T1 space"
+        BLSPACE=$BLMPSUBSEG
+        c3d $HWSPACE -resample 500% -o ${tmpdir}/hwspace.nii.gz
+        c3d $FUSPACE -resample 500% -o ${tmpdir}/fuspace.nii.gz
+        HWSPACE=${tmpdir}/hwspace.nii.gz
+        FUSPACE=${tmpdir}/fuspace.nii.gz
+      fi
     fi
-  fi
-else
-  if $ALTMODESEG; then
-    if [ "$DOMPSUB" == "1" ]; then
-      BLSEG=$BLMPSUBSEG
+  else
+    if $ALTMODESEG; then
+      if [ "$DOMPSUB" == "1" ]; then
+        BLSEG=$BLMPSUBSEG
+      else
+        BLSEG=$BLMPSEG
+      fi
+      cp $BLSEG $tmpdir/blseg.nii.gz
     else
-      BLSEG=$BLMPSEG
+      BLSEG=$BLTSESEG
+      # Mask with FU image coverage
+      c3d $BLSEG $WDDIR/futrimdef_om_to_bltrim_warped_3d.nii.gz -interp NN -reslice-identity $BLSEG -times -o $tmpdir/blseg.nii.gz
     fi
-    cp $BLSEG $tmpdir/blseg.nii.gz
-  else
-    BLSEG=$BLTSESEG
-    # Mask with FU image coverage
-    c3d $BLSEG $WDDIR/futrimdef_om_to_bltrim_warped_3d.nii.gz -interp NN -reslice-identity $BLSEG -times -o $tmpdir/blseg.nii.gz
   fi
-fi
 
-BLSEG=$tmpdir/blseg.nii.gz
+  BLSEG=$tmpdir/blseg.nii.gz
 
-# We need to limit the baseline segmentation over which longitudinal measurements are made to the region in which followup image
-# has been imaged. Later on, this should be implemented as the common region where both scans are acquired when reciprocal measuremeants are made.
+  # We need to limit the baseline segmentation over which longitudinal measurements are made to the region in which followup image
+  # has been imaged. Later on, this should be implemented as the common region where both scans are acquired when reciprocal measuremeants are made.
 
-llist=($(c3d $BLSEG $BLSEG -lstat | grep -v LabelID | awk '{print $1}'))
-LABELMAP=''
-for ((i=0; i < ${#llist[*]}; i++)); do 
-  LABELMAP="$LABELMAP $i ${llist[i]}"
-done
+  llist=($(c3d $BLSEG $BLSEG -lstat | grep -v LabelID | awk '{print $1}'))
+  LABELMAP=''
+  for ((i=0; i < ${#llist[*]}; i++)); do 
+    LABELMAP="$LABELMAP $i ${llist[i]}"
+  done
 
-if $ALTMODESEG; then
-  if [ "$MODALITY" == "TSE" ]; then
-    RESLICECOMM="-reslice-matrix ${WDDIR}/../../../ibn_work_L/bl_mprage_tse_RAS.mat"
+  if $ALTMODESEG; then
+    if [ "$MODALITY" == "TSE" ]; then
+      RESLICECOMM="-reslice-matrix ${WDDIR}/../../../ibn_work_L/bl_mprage_tse_RAS.mat"
+    else
+      c3d_affine_tool ${WDDIR}/../../../ibn_work_L/bl_mprage_tse_RAS.mat -inv -o ${tmpdir}/bl_tse_mprage_RAS.mat
+      RESLICECOMM="-reslice-matrix ${tmpdir}/bl_tse_mprage_RAS.mat"
+    fi
   else
-    c3d_affine_tool ${WDDIR}/../../../ibn_work_L/bl_mprage_tse_RAS.mat -inv -o ${tmpdir}/bl_tse_mprage_RAS.mat
-    RESLICECOMM="-reslice-matrix ${tmpdir}/bl_tse_mprage_RAS.mat"
+    RESLICECOMM="-reslice-identity"
   fi
-else
-  RESLICECOMM="-reslice-identity"
-fi
-
-# Map segmentation to halfway space
-for ((i=0; i < ${#llist[*]}; i++)); do 
-  c3d $BLSPACE $BLSEG \
-    -thresh ${llist[i]} ${llist[i]} 1 0  -smooth 0.24mm $RESLICECOMM \
-    -o ${tmpdir}/label`printf %02d ${llist[i]}`.nii.gz
 
   c3d $BLSPACE $BLSEG -interp NN -reslice-identity -o $WDDIR/segbl.nii.gz
 
-  c3d $HWSPACE ${tmpdir}/label`printf %02d ${llist[i]}`.nii.gz \
-    -reslice-matrix ${WDDIR}/omRAS_halfinv.mat \
-    -o ${tmpdir}/labelhw`printf %02d ${llist[i]}`.nii.gz
+  # If we want to mask baseline seg by common coverage
   if $USEMASKOL; then
-    BLORIG=($(c3d $BLSPACE -info-full | head -n 3 | tail -n 1 | sed -e "s/.*{\[//" -e "s/\],.*//"))
-    c3d $FUORIGSPACE $FUSEG -interp NN -reslice-identity -origin ${BLORIG[0]}x${BLORIG[1]}x${BLORIG[2]}mm -o $WDIR/fuseg_om.nii.gz
+    for ((i=0; i < ${#llist[*]}; i++)); do 
+      BLORIG=($(c3d $BLSPACE -info-full | head -n 3 | tail -n 1 | sed -e "s/.*{\[//" -e "s/\],.*//"))
+      c3d $FUORIGSPACE $FUSEG -interp NN -reslice-identity -origin ${BLORIG[0]}x${BLORIG[1]}x${BLORIG[2]}mm -o $WDIR/fuseg_om.nii.gz
 
-    c3d $FUSPACE $WDIR/fuseg_om.nii.gz \
-      -thresh ${llist[i]} ${llist[i]} 1 0  -smooth 0.24mm $RESLICECOMM \
-      -o ${tmpdir}/fulabel`printf %02d ${llist[i]}`.nii.gz
+      c3d $FUSPACE $WDIR/fuseg_om.nii.gz \
+        -thresh ${llist[i]} ${llist[i]} 1 0  -smooth 0.24mm $RESLICECOMM \
+        -o ${tmpdir}/fulabel`printf %02d ${llist[i]}`.nii.gz
 
-    c3d $BLSPACE $WDIR/fuseg_om.nii.gz \
-      -thresh ${llist[i]} ${llist[i]} 1 0  -reslice-matrix ${WDDIR}/omRAS.mat \
-      -o ${tmpdir}/fulabelbl`printf %02d ${llist[i]}`.nii.gz
+      c3d $BLSPACE $WDIR/fuseg_om.nii.gz \
+        -thresh ${llist[i]} ${llist[i]} 1 0  -reslice-matrix ${WDDIR}/omRAS.mat \
+        -o ${tmpdir}/fulabelbl`printf %02d ${llist[i]}`.nii.gz
 
-    c3d $HWSPACE ${tmpdir}/fulabel`printf %02d ${llist[i]}`.nii.gz \
-      -reslice-matrix ${WDDIR}/omRAS_half.mat \
-      -o ${tmpdir}/fulabelhw`printf %02d ${llist[i]}`.nii.gz
+      c3d $HWSPACE ${tmpdir}/fulabel`printf %02d ${llist[i]}`.nii.gz \
+        -reslice-matrix ${WDDIR}/omRAS_half.mat \
+        -o ${tmpdir}/fulabelhw`printf %02d ${llist[i]}`.nii.gz
+    done
+    # Warning: assuming followup segmentation has the same label set as the baseline. Sometimes a small label may be absent (like CA2/3)
+    # Won't matter unless using individual labels matching by numbers
+    c3d ${tmpdir}/fulabelhw??.nii.gz -vote -o ${WDDIR}/fuseghw.nii.gz
+    c3d ${tmpdir}/fulabelbl??.nii.gz -vote -o ${WDDIR}/fusegbl.nii.gz
+    c3d ${WDDIR}/fuseghw.nii.gz -replace $LABELMAP -o ${WDDIR}/fuseghw.nii.gz
+    # Change BLSEG by common mask
+    c3d ${WDDIR}/segbl.nii.gz ${WDDIR}/fusegbl.nii.gz -overlap 1
+    c3d $BLSPACE $BLSEG -interp NN $RESLICECOMM ${WDDIR}/fusegbl.nii.gz -times -thresh 1 inf 1 0 $BLSEG -o $BLSEG
+    
   fi
-done
 
-LIDX=0
-LREP=""
-# Create ROI labels to use for P_LABELMAP measurements
-for ((i=0; i < ${#map[*]}; i++)); do
-  imap=${map[i]}
-  LOUT=${imap%:*}
-  LSRC=${imap#*:}
-  CMD[i]=""
-  for trg in `echo $LSRC | sed -e "s/,/ /g"`; do
-    CMD[i]="${CMD[i]} $trg inf"
-  done
-
-  ID=`printf %02i $LIDX`;
-  # ********************** check if we need ${CMD[i]} here
-  c3d $BLSPACE $BLSEG -replace $CMD -thresh inf inf 1 0 -smooth 0.24mm $RESLICECOMM \
-    -o ${tmpdir}/roilabel${ID}.nii.gz
-  c3d $HWSPACE ${tmpdir}/roilabel${ID}.nii.gz \
-    -reslice-matrix ${WDDIR}/omRAS_halfinv.mat \
-    -o ${tmpdir}/roilabelhw${ID}.nii.gz
-  
-  LREP="$LREP $((LIDX++)) $LOUT"
-
-done
-
-c3d ${tmpdir}/labelhw??.nii.gz -vote -o ${WDDIR}/seghw.nii.gz
-c3d ${WDDIR}/seghw.nii.gz -replace $LABELMAP -o ${WDDIR}/seghw.nii.gz
-
-# Warning: assuming followup segmentation has the same label set as the baseline. Sometimes a small label may be absent (like CA2/3)
-if $USEMASKOL; then
-  c3d ${tmpdir}/fulabelhw??.nii.gz -vote -o ${WDDIR}/fuseghw.nii.gz
-  c3d ${tmpdir}/fulabelbl??.nii.gz -vote -o ${WDDIR}/fusegbl.nii.gz
-  c3d ${WDDIR}/fuseghw.nii.gz -replace $LABELMAP -o ${WDDIR}/fuseghw.nii.gz
-#  c3d ${WDDIR}/seghw.nii.gz ${WDDIR}/fuseghw.nii.gz -overlap 1
-  c3d ${WDDIR}/segbl.nii.gz ${WDDIR}/fusegbl.nii.gz -overlap 1
-fi
-
-if [ "$ATRMODE" == "HW" ]; then
-  llist=($(c3d ${WDDIR}/seghw.nii.gz ${WDDIR}/seghw.nii.gz -lstat | grep -v LabelID | awk '{print $1}'))
-  LABELMAP=''
+  # Map segmentation to halfway space
   for ((i=0; i < ${#llist[*]}; i++)); do 
-    LABELMAP="$LABELMAP $i ${llist[i]}"
+    c3d $BLSPACE $BLSEG \
+      -thresh ${llist[i]} ${llist[i]} 1 0  -smooth 0.24mm $RESLICECOMM \
+      -o ${tmpdir}/label`printf %02d ${llist[i]}`.nii.gz
+
+
+    c3d $HWSPACE ${tmpdir}/label`printf %02d ${llist[i]}`.nii.gz \
+      -reslice-matrix ${WDDIR}/omRAS_halfinv.mat \
+      -o ${tmpdir}/labelhw`printf %02d ${llist[i]}`.nii.gz
   done
-fi
-if [ "$ATRMODE" == "BL" ]; then
-  llist=($(c3d ${WDDIR}/segbl.nii.gz ${WDDIR}/segbl.nii.gz -lstat | grep -v LabelID | awk '{print $1}'))
-  LABELMAP=''
-  for ((i=0; i < ${#llist[*]}; i++)); do 
-    LABELMAP="$LABELMAP $i ${llist[i]}"
+
+  LIDX=0
+  LREP=""
+  # Create ROI labels to use for P_LABELMAP measurements
+  for ((i=0; i < ${#map[*]}; i++)); do
+    imap=${map[i]}
+    LOUT=${imap%:*}
+    LSRC=${imap#*:}
+    CMD[i]=""
+    for trg in `echo $LSRC | sed -e "s/,/ /g"`; do
+      CMD[i]="${CMD[i]} $trg inf"
+    done
+
+    ID=`printf %02i $LIDX`;
+    # ********************** check if we need ${CMD[i]} here
+    c3d $BLSPACE $BLSEG -replace $CMD -thresh inf inf 1 0 -smooth 0.24mm $RESLICECOMM \
+      -o ${tmpdir}/roilabel${ID}.nii.gz
+    c3d $HWSPACE ${tmpdir}/roilabel${ID}.nii.gz \
+      -reslice-matrix ${WDDIR}/omRAS_halfinv.mat \
+      -o ${tmpdir}/roilabelhw${ID}.nii.gz
+    
+    LREP="$LREP $((LIDX++)) $LOUT"
+
   done
-fi
-# This doesn't work for missing labels 
-# c3d $BLSPACE -popas BB $BLSEG -split -foreach -smooth 0.24mm -insert BB 1 -reslice-identity -endfor \
-# -oo ${tmpdir}/label%02d.nii.gz 
 
-export id side BLGRAY FUGRAY BLMPGRAY FUMPGRAY BLSEG FUSEG BLHRGRAY FUHRGRAY BLHRSEG FUHRSEG WORK INITTYPE DEFTYPE METRIC GLOBALREGPROG USEMASK SYMMTYPE REGTYPE USEDEFMASK MASKRAD
+  c3d ${tmpdir}/labelhw??.nii.gz -vote -o ${WDDIR}/seghw.nii.gz
+  c3d ${WDDIR}/seghw.nii.gz -replace $LABELMAP -o ${WDDIR}/seghw.nii.gz
 
 
-if $USEPLABELMAP; then
-  nROI=${#map[*]}
-else
-  nROI=11
-fi
+  if [ "$ATRMODE" == "HW" ]; then
+    llist=($(c3d ${WDDIR}/seghw.nii.gz ${WDDIR}/seghw.nii.gz -lstat | grep -v LabelID | awk '{print $1}'))
+    LABELMAP=''
+    for ((i=0; i < ${#llist[*]}; i++)); do 
+      LABELMAP="$LABELMAP $i ${llist[i]}"
+    done
+  fi
+  if [ "$ATRMODE" == "BL" ]; then
+    llist=($(c3d ${WDDIR}/segbl.nii.gz ${WDDIR}/segbl.nii.gz -lstat | grep -v LabelID | awk '{print $1}'))
+    LABELMAP=''
+    for ((i=0; i < ${#llist[*]}; i++)); do 
+      LABELMAP="$LABELMAP $i ${llist[i]}"
+    done
+  fi
+  # This doesn't work for missing labels 
+  # c3d $BLSPACE -popas BB $BLSEG -split -foreach -smooth 0.24mm -insert BB 1 -reslice-identity -endfor \
+  # -oo ${tmpdir}/label%02d.nii.gz 
 
-unset SFBL SFFU JACSFBL JACSFFU
+  export id side BLGRAY FUGRAY BLMPGRAY FUMPGRAY BLSEG FUSEG BLHRGRAY FUHRGRAY BLHRSEG FUHRSEG WORK INITTYPE DEFTYPE METRIC GLOBALREGPROG USEMASK SYMMTYPE REGTYPE USEDEFMASK MASKRAD
 
-is3d=`echo "$DEFTYPE > 2" | bc`
-if [ $is3d == 1 ]; then
-  
+
+  if $USEPLABELMAP; then
+    nROI=${#map[*]}
+  else
+    nROI=11
+  fi
+
+  unset SFBL SFFU JACSFBL JACSFFU
+
+  is3d=`echo "$DEFTYPE > 2" | bc`
+  if [ $is3d == 1 ]; then
+    
   MANRESFILE=${WDDIR}/manual_longvol.txt
   rm -f $MANRESFILE
   c3d $BLSPACE $BLSEG -interp NN $RESLICECOMM -o ${WDDIR}/segbltrim.nii.gz
@@ -454,8 +460,9 @@ else # is3d = 0, 2D registration
     JACSFFU[i]=0
   done
 
- 
-  for ((i=0; i < ${zsize}; i++)) do
+  # Don't use the boundary slices
+  zsize=$(expr $zsize - 1) 
+  for ((i=1; i < ${zsize}; i++)) do
     ANTSJacobian 2 ${WDDIR}/${DEFREGPROG}/${DEFREGPROG}reg_${i}Warp.nii.gz ${WDDIR}/${DEFREGPROG}/${DEFREGPROG}reg_${i}
     gzip -f ${WDDIR}/${DEFREGPROG}/${DEFREGPROG}reg_${i}grid.nii ${WDDIR}/${DEFREGPROG}/${DEFREGPROG}reg_${i}jacobian.nii
     for ((l=0; l < ${#llist[*]}; l++)); do 
@@ -760,9 +767,9 @@ if [ $is3d == 1 ]; then
           ~srdas/bin/cmrep/warpmesh -w ants ${tmpdir}/labelhw${i}.vtk ${tmpdir}/warpedlabelhw${i}.vtk $WDDIR/${DEFREGPROG}/${DEFREGPROG}reg${DEFTYPE}dWarp?vec.nii.gz
         elif [[ "$RIGIDMODE" == "HW" && "$ATRMODE" == "BL" ]]; then
           ~srdas/bin/cmrep/warpmesh ${tmpdir}/label${i}.vtk ${tmpdir}/label_2hw${i}.vtk $WDDIR/omRAS_half.mat
-          # ~srdas/bin/cmrep/warpmesh -w ants ${tmpdir}/label_2hw${i}.vtk ${tmpdir}/warpedlabel${i}.vtk $WDDIR/${DEFREGPROG}/${DEFREGPROG}reg${DEFTYPE}dWarp?vec.nii.gz
+          ~srdas/bin/cmrep/warpmesh -w ants ${tmpdir}/label_2hw${i}.vtk ${tmpdir}/warpedlabel${i}.vtk $WDDIR/${DEFREGPROG}/${DEFREGPROG}reg${DEFTYPE}dWarp?vec.nii.gz
           # Crashes for 009_S_2208, it appears that Paul's version doesn't crash so try it but it doesn't report stats
-          ~pauly/bin/warpmesh -w ants ${tmpdir}/label_2hw${i}.vtk ${tmpdir}/warpedlabel${i}.vtk $WDDIR/${DEFREGPROG}/${DEFREGPROG}reg${DEFTYPE}dWarp?vec.nii.gz
+          # ~pauly/bin/warpmesh -w ants ${tmpdir}/label_2hw${i}.vtk ${tmpdir}/warpedlabel${i}.vtk $WDDIR/${DEFREGPROG}/${DEFREGPROG}reg${DEFTYPE}dWarp?vec.nii.gz
           ~srdas/bin/cmrep/warpmesh ${tmpdir}/warpedlabel${i}.vtk ${tmpdir}/warpedlabel_to_futrim_om${i}.vtk $WDDIR/omRAS_half.mat
         else
           ~srdas/bin/cmrep/warpmesh -w ants ${tmpdir}/label${i}.vtk ${tmpdir}/warpedlabel${i}.vtk $WDDIR/${DEFREGPROG}/${DEFREGPROG}reg${DEFTYPE}dWarp?vec.nii.gz
@@ -868,7 +875,9 @@ else # 2d mesh
     SFFU[i]=0
   done
 
-  for ((i=0; i < ${zsize}; i++)) do
+  # Don't use the boundary slices
+  zsize=$(expr $zsize - 1) 
+  for ((i=1; i < ${zsize}; i++)) do
     for ((l=0; l<nl; l++)) ; do
       if $USEPLABELMAP ; then
         if [ ${l} -eq 0 ]; then

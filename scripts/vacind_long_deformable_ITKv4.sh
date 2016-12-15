@@ -291,7 +291,7 @@ rm -f $WDIR/bltrim.mha  $WDIR/hwtrimdef.mha $WDIR/bltrim_to_hw.mha $WDIR/futrim_
 
 # Check if halfway mask contains the whole segmentation
 maxdiff=`c3d  $SEG -trim 16mm -thresh 1 inf 1 0 -as M $WDIR/hwtrimdef.nii.gz -push M -reslice-matrix \
-  $WDIR/omRAS_halfinv.mat -trim 10mm -binarize -scale -1 \
+  $WDIR/omRAS_halfinv.mat -binarize -scale -1 \
   -add -info-full   | grep "Intensity Range" | sed -e 's/]//g' | awk -F ',' {'print $2'}`
 if [ $maxdiff -lt 0 ]; then
   echo "halfway mask doesn't contain the whole segmentation"
@@ -651,14 +651,34 @@ if [[ ${ANTSITER=100} > 0 ]]; then
 
               if [ ${DEFREGPROG} = "ants" ]; then
                 rm -f $WDIR/ants/ants_output_${i}.txt
+             #  $BIN_ANTSITK4/antsRegistration --dimensionality 2 $maskopt \
+             #     --initial-fixed-transform $WDIR/omRAS_half_inv_itk.txt  --initial-moving-transform $WDIR/omRAS_half_itk.txt \
+             #     -o [ $WDIR/ants/antsreg3d , ${WDIR}/futrim_om_to_hw_warped_3d_ITKv4.nii.gz ] \
+             #     -t SyN[ ${ASTEPSIZE?} , $REGUL ] \
+             #     -m Mattes[$WDIR/bltrim.nii.gz,$WDIR/futrim_om.nii.gz,1,32,Regular,0.25] \
+             #     -c [ $ANTSITER, 1e-08,10 ] \
+             #     -s 2x1x0vox  -f 4x2x1 | tee $WDIR/ants/ants_output_3d.txt;
+
+                # Deleted old ANTs call on 04/11/2014 
+#                $BIN_ANTSITK4/antsRegistration --dimensionality 2 $maskopt \
+#                  -o [ $WDIR/ants/antsreg_${i} , $WDIR/futrim_om_to_hw_warped_${i}_ITKv4.nii.gz ] \
+#                  -t SyN[ ${ASTEPSIZE?} , $REGUL ] \
+#                  -m Mattes[$WDIR/bltrim_to_hw_${i}.nii.gz,$WDIR/futrim_om_to_hw_${i}.nii.gz,1,32,Regular,0.25] \
+#                  -c [ $ANTSITER, 1e-08,10 ] \
+#                  -s 2x1x0vox  -f 4x2x1 | tee $WDIR/ants/ants_output_${i}.txt;
+#                #  -v -t SyN[${ASTEPSIZE?}] -r $REGUL \
+#                #  -v -t SyN[0.1,5,0.001] --geodesic 2 -r $REGUL] \
+#                c3d -mcs $WDIR/ants/antsreg_${i}0Warp.nii.gz -oo $WDIR/ants/antsreg_${i}Warpxvec.nii.gz $WDIR/ants/antsreg_${i}Warpyvec.nii.gz
+#                c3d -mcs $WDIR/ants/antsreg_${i}0InverseWarp.nii.gz -oo $WDIR/ants/antsreg_${i}InverseWarpxvec.nii.gz $WDIR/ants/antsreg_${i}InverseWarpyvec.nii.gz 
+
                 $BIN_ANTS/ANTS 2 $maskopt \
                   -m PR[$WDIR/bltrim_to_hw_${i}.nii.gz,$WDIR/futrim_om_to_hw_${i}.nii.gz,1,4] \
                   -o $WDIR/ants/antsreg_${i}.nii.gz \
                   -i $ANTSITER \
                   -v -t SyN[${ASTEPSIZE?}] -r $REGUL \
                   --continue-affine false | tee $WDIR/ants/ants_output_${i}.txt;
-                #  -v -t SyN[${ASTEPSIZE?}] -r $REGUL \
-                #  -v -t SyN[0.1,5,0.001] --geodesic 2 -r $REGUL] \
+
+
                 # TODO handle properly. This is a terrible hack. When one image is empty, ANTS bails out with NaNs in energy
                 # without any warning. If this happens warp files are not generated.
                 if [ ! -f $WDIR/ants/antsreg_${i}Warpxvec.nii.gz ]; then

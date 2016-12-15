@@ -17,13 +17,20 @@ LDIR=$ROOT/testretest
  DROOT=/home/srdas/wd/John
  LDIR=/home/srdas/wd/John/long
 
- DROOT=/home/srdas/wd/Pfizer/ADC
- LDIR=/home/srdas/wd/Pfizer/ADC/long/structural
- DROOT=/home/srdas/wd/ADNI2
- LDIR=/home/srdas/wd/ADNI2/long
-
  DROOT=/home/srdas/wd/BerlinSimone
  LDIR=/home/srdas/wd/BerlinSimone/long
+
+ DROOT=/home/srdas/wd/ect
+ LDIR=/home/srdas/wd/ect
+
+ DROOT=/home/srdas/wd/Pfizer/ADC
+ LDIR=/home/srdas/wd/Pfizer/ADC/long/structural
+
+ DROOT=/home/srdas/wd/MEMORIES
+ LDIR=/home/srdas/wd/MEMORIES/long
+
+ DROOT=/home/srdas/wd/ADNI2
+ LDIR=/home/srdas/wd/ADNI2/longBLT1
 
 
 FLAVOR=$1
@@ -154,7 +161,7 @@ exclbool=`grep $id $LDIR/excl_subj.txt | egrep -e $BLTIMEPOINT -e $TIMEPOINT`
     continue;
   fi  
 #  grp=${ALLGRP[i]}
-  grp=$(grep $id $LDIR/long_sublist_${TIMEPOINT}.txt | grep " L " | cut -f 3 -d " ")
+  grp=$(grep $id $LDIR/long_sublist_${TIMEPOINT}_snap.txt | grep " L " | cut -f 3 -d " ")
   tp=$TIMEPOINT
   bltp=$BLTIMEPOINT
   # Create dump
@@ -171,6 +178,7 @@ exclbool=`grep $id $LDIR/excl_subj.txt | egrep -e $BLTIMEPOINT -e $TIMEPOINT`
   if [ "$bltp" == "$tp" ]; then
     continue;
   fi
+  #rm -rf $WORK
   mkdir -p $WORK/dump
 
 #  if [ -f $WORK/ibn_work_L/ANTS_mp/mutualinfo_asym_${ASTEPSIZE}_${REGUL1}_${REGUL2}/meshwarp_longvol_3d.txt ]; then

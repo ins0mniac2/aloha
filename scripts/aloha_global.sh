@@ -43,6 +43,7 @@ cat <<-BLOCK1
 	PATH: ${PATH?}
 BLOCK1
 
+echo "Script: $0"
 
 export FSLOUTPUTTYPE=NIFTI_GZ
 
@@ -59,47 +60,144 @@ for side in $side; do
     ALOHA_BL_MPSEG=$ALOHA_BL_MPSEG_RIGHT
     ALOHA_BL_TSESEG=$ALOHA_BL_TSESEG_RIGHT
   fi
+  BLMPTRIM=$WDGLOBAL/blmptrim_${side}.nii.gz
+  FUMPTRIM=$WDGLOBAL/fumptrim_${side}.nii.gz
+  BLTRIM=$WDGLOBAL/bltrim_${side}.nii.gz
+  FUTRIM=$WDGLOBAL/futrim_${side}.nii.gz
+
+  # Use the baseline segmentation and initial whole brain registration to create the trimmed T1 images
   c3d $ALOHA_BL_MPRAGE -as BL $ALOHA_FU_MPRAGE -as FU \
-    $ALOHA_BL_MPSEG -trim 16mm -sdt -smooth 4mm -thresh 0 inf 1 0 -as M \
-    -push BL -push M -dilate 1 ${ALOHA_REG_MASKRAD}x${ALOHA_REG_MASKRAD}x${ALOHA_REG_MASKRAD}mm \
+    $ALOHA_BL_MPSEG -trim ${ALOHA_REG_MPTRIM}mm -as M \
+    -push BL -push M -dilate 1 ${ALOHA_REG_MPMASKRAD}x${ALOHA_REG_MPMASKRAD}x${ALOHA_REG_MPMASKRAD}mm \
     -trim 10mm -as SBL -o $WDGLOBAL/blmptrimdef_${side}.nii.gz \
-    -push FU -push SBL -dilate 1 ${ALOHA_REG_MASKRAD}x${ALOHA_REG_MASKRAD}x${ALOHA_REG_MASKRAD}mm -reslice-matrix ${WDINIT}/mprage_long_RAS_inv.mat \
+    -push FU -push SBL -reslice-matrix ${WDINIT}/mprage_long_RAS_inv.mat \
     -trim 10mm -as SFU -o $WDGLOBAL/fumptrimdef_${side}.nii.gz \
-    -push SBL -push BL -int NN -reslice-identity -o $WDGLOBAL/blmptrim_${side}.nii.gz \
-    -push SFU -push FU -int NN -reslice-identity -o $WDGLOBAL/fumptrim_${side}.nii.gz
+    -push SBL -push BL -int NN -reslice-identity -o $BLMPTRIM \
+    -push SFU -push FU -int NN -reslice-identity -o $FUMPTRIM
+
+  # If if we have T2, we need to trim those as well
+  if [[ $ALOHA_USE_TSE ]]; then 
+    c3d $ALOHA_BL_TSE -as BL $ALOHA_FU_TSE -as FU \
+      $ALOHA_BL_TSESEG -trim ${ALOHA_REG_TSETRIM}vox -as M \
+      -push BL -push M -dilate 1 ${ALOHA_REG_TSEMASKRAD}x${ALOHA_REG_TSEMASKRAD}x${ALOHA_REG_TSEMASKRAD}vox \
+      -trim 10mm -as SBL -o $WDGLOBAL/bltrimdef_${side}.nii.gz \
+      -push FU -push SBL -reslice-matrix ${WDINIT}/tse_long_RAS_inv.mat \
+      -trim 10mm -as SFU -o $WDGLOBAL/futrimdef_${side}.nii.gz \
+      -push SBL -push BL -int NN -reslice-identity -o $BLTRIM \
+      -push SFU -push FU -int NN -reslice-identity -o $FUTRIM
+  fi
+
 
 # TODO Check masks are genus zero
 
 
+  #  -r [$WDGLOBAL/blmptrim_${side}.nii.gz,$WDGLOBAL/fumptrim_${side}.nii.gz,1] \
+
+  # Create the halfway reference space for both modalities
+  c3d_affine_tool -sform $FUMPTRIM  -sform $BLMPTRIM \
+    -inv -mult -sqrt -sform $BLMPTRIM -mult -o $WDGLOBAL/mprage_${side}_hwspace.mat
+  if [[ $ALOHA_USE_TSE ]]; then 
+    c3d_affine_tool -sform $FUTRIM  -sform $BLTRIM \
+      -inv -mult -sqrt -sform $BLTRIM -mult -o $WDGLOBAL/tse_${side}_hwspace.mat
+  fi
+
+  # Convert initialization matrix to ITK format
+  c3d_affine_tool ${WDINIT}/mprage_long_RAS.mat -oitk ${WDINIT}/mprage_long_RAS_itk.txt
 
   # Do the registration
-  antsRegistration -d 3 -o [$WDGLOBAL/mprage_global_long_${side},$WDGLOBAL/mprage_global_long_${side}_resliced.nii.gz] \
-    -r [$WDGLOBAL/blmptrim_${side}.nii.gz,$WDGLOBAL/fumptrim_${side}.nii.gz,1] \
+  antsRegistration -d 3 -o [$WDGLOBAL/mprage_global_long_${side},$WDGLOBAL/resliced_mprage_global_long_${side}_ants.nii.gz] \
+    -r [$BLMPTRIM,$FUMPTRIM,1] \
     -t Translation[0.1] -f 4x2x1 -s 2x1x0 -c [1200x1200x50,1e-08,10] -l 1 -u 1 -w [0.0,0.995] \
-    -m Mattes[$WDGLOBAL/blmptrim_${side}.nii.gz,$WDGLOBAL/fumptrim_${side}.nii.gz,1,32,Regular,0.25] \
+    -m Mattes[$BLMPTRIM,$FUMPTRIM,1,32,Regular,0.25] \
     -t Rigid[0.1] -f 4x2x1 -s 2x1x0 -c [1200x1200x50,1e-08,10] -l 1 -u 1 -w [0.0,0.995] \
-    -m Mattes[$WDGLOBAL/blmptrim_${side}.nii.gz,$WDGLOBAL/fumptrim_${side}.nii.gz,1,32,Regular,0.25] \
+    -m Mattes[$BLMPTRIM,$FUMPTRIM,1,32,Regular,0.25] \
     -t Similarity[0.1] -f 4x2x1 -s 2x1x0 -c [1200x1200x50,1e-08,10] -l 1 -u 1 -w [0.0,0.995] \
-    -m Mattes[$WDGLOBAL/blmptrim_${side}.nii.gz,$WDGLOBAL/fumptrim_${side}.nii.gz,1,32,Regular,0.25] \
-    -b 0
-
-    ConvertTransformFile 3 $WDGLOBAL/mprage_global_long_${side}0GenericAffine.mat $WDGLOBAL/mprage_global_long_${side}0GenericAffine_RAS.mat --hm
-
-    c3d $ALOHA_BL_MPRAGE $ALOHA_FU_MPRAGE -reslice-matrix $WDGLOBAL/mprage_global_long_${side}0GenericAffine_RAS.mat -o $WDGLOBAL/resliced_mprage_global_${side}.nii.gz
-
+    -m Mattes[$BLMPTRIM,$FUMPTRIM,1,32,Regular,0.25] \
+    -z 0
 
   if [[ $ALOHA_USE_TSE ]]; then
+    antsRegistration -d 3 -o [$WDGLOBAL/tse_global_long_${side},$WDGLOBAL/resliced_tse_global_long_${side}_ants.nii.gz] \
+      -r [$BLTRIM,$FUTRIM,1] \
+      -t Translation[0.1] -f 4x2x1 -s 2x1x0 -c [1200x1200x50,1e-08,10] -l 1 -u 1 -w [0.0,0.995] \
+      -m Mattes[$BLTRIM,$FUTRIM,1,32,Regular,0.25] \
+      -t Rigid[0.1] -f 4x2x1 -s 2x1x0 -c [1200x1200x50,1e-08,10] -l 1 -u 1 -w [0.0,0.995] \
+      -m Mattes[$BLTRIM,$FUTRIM,1,32,Regular,0.25] \
+      -t Similarity[0.1] -f 4x2x1 -s 2x1x0 -c [1200x1200x50,1e-08,10] -l 1 -u 1 -w [0.0,0.995] \
+      -m Mattes[$BLTRIM,$FUTRIM,1,32,Regular,0.25] \
+      -z 0
 
-    # Create TSE trimmed images
-    c3d $ALOHA_BL_TSE -as BL $ALOHA_FU_TSE -as FU \
-      $ALOHA_BL_TSESEG -trim 16mm -sdt -smooth 4mm -thresh 0 inf 1 0 -as M \
-      -push BL -push M -dilate 1 ${MASKRAD}x${MASKRAD}x${MASKRAD}mm -reslice-identity \
-      -trim 10mm -as SBL -o $WDGLOBAL/bltrimdef_${side}.nii.gz \
-      -push FU -push M -dilate 1 ${MASKRAD}x${MASKRAD}x${MASKRAD}mm -reslice-matrix ${WDINIT}/tse_long_RAS_inv.mat \
-      -trim 10mm -as SFU -o $WDGLOBAL/futrimdef_${side}.nii.gz \
-      -push SBL -push BL -int NN -reslice-identity -o $WDGLOBAL/bltrim_${side}.nii.gz \
-      -push SFU -push FU -int NN -reslice-identity -o $WDGLOBAL/futrim_${side}.nii.gz
 
   fi
+
+    # Flirt initialization may not work as well as center of mass
+    # -r ${WDINIT}/mprage_long_RAS_itk.txt \
+    # Old version
+    # -b 0
+
+  # Convert tramsform files to RAS
+  if [[ $ALOHA_USE_TSE ]]; then
+    modlist=$(echo mprage tse)
+  else
+    modlist=$(echo mprage)
+  fi
+  
+  for modality in $modlist; do
+
+# :<<nocompose
+ #   ConvertTransformFile 3 $WDGLOBAL/${modality}_global_long_${side}0GenericAffine.mat $WDGLOBAL/${modality}_global_long_${side}0GenericAffine_RAS.mat --hm --ras
+    ConvertTransformFile 3 $WDGLOBAL/${modality}_global_long_${side}0DerivedInitialMovingTranslation.mat $WDGLOBAL/${modality}_global_long_${side}0DerivedInitialMovingTranslation_RAS.mat --hm --ras
+    ConvertTransformFile 3 $WDGLOBAL/${modality}_global_long_${side}1Translation.mat $WDGLOBAL/${modality}_global_long_${side}1Translation_RAS.mat --hm --ras
+    ConvertTransformFile 3 $WDGLOBAL/${modality}_global_long_${side}2Rigid.mat $WDGLOBAL/${modality}_global_long_${side}2Rigid_RAS.mat --hm --ras
+    ConvertTransformFile 3 $WDGLOBAL/${modality}_global_long_${side}3Similarity.mat $WDGLOBAL/${modality}_global_long_${side}3Similarity_RAS.mat --hm --ras
+    c3d_affine_tool \
+      $WDGLOBAL/${modality}_global_long_${side}0DerivedInitialMovingTranslation_RAS.mat \
+      $WDGLOBAL/${modality}_global_long_${side}1Translation_RAS.mat \
+      $WDGLOBAL/${modality}_global_long_${side}2Rigid_RAS.mat \
+      $WDGLOBAL/${modality}_global_long_${side}3Similarity_RAS.mat \
+      -mult -mult -mult \
+      -o $WDGLOBAL/${modality}_global_long_${side}_RAS.mat
+# nocompose
+  done
+
+    # One collapsed transform
+    # ConvertTransformFile 3 $WDGLOBAL/${modality}_global_long_${side}0GenericAffine.mat $WDGLOBAL/${modality}_global_long_${side}_RAS.mat --hm --ras
+
+    # Make the resliced image
+    c3d $BLMPTRIM $FUMPTRIM -reslice-matrix $WDGLOBAL/mprage_global_long_${side}_RAS.mat -o $WDGLOBAL/resliced_mprage_global_${side}.nii.gz
+    if [[ $ALOHA_USE_TSE ]]; then
+      c3d $BLTRIM $FUTRIM -reslice-matrix $WDGLOBAL/tse_global_long_${side}_RAS.mat -o $WDGLOBAL/resliced_tse_global_${side}.nii.gz
+    fi
+
+    # Split transform in half for unbiased processing
+    c3d_affine_tool $WDGLOBAL/mprage_global_long_${side}_RAS.mat \
+      -inv -o $WDGLOBAL/mprage_global_long_${side}_RAS_inv.mat \
+      -sqrt -o $WDGLOBAL/mprage_global_long_${side}_RAS_halfinv.mat -inv \
+      -o $WDGLOBAL/mprage_global_long_${side}_RAS_half.mat
+    # Create halfway space image and reslice both images to the halfway space
+
+    c3d $BLMPTRIM -set-sform $WDGLOBAL/mprage_${side}_hwspace.mat \
+      $BLMPTRIM -reslice-matrix $WDGLOBAL/mprage_global_long_${side}_RAS_halfinv.mat \
+      -o  $WDGLOBAL/mprage_${side}_hwdef.nii.gz -o $WDGLOBAL/resliced_mprage_global_${side}_bl_to_hw.nii.gz
+    c3d $WDGLOBAL/mprage_${side}_hwdef.nii.gz $FUMPTRIM \
+      -reslice-matrix $WDGLOBAL/mprage_global_long_${side}_RAS_half.mat \
+      -o $WDGLOBAL/resliced_mprage_global_${side}_fu_to_hw.nii.gz
+    if [[ $ALOHA_USE_TSE ]]; then
+      # Split transform in half for unbiased processing
+      c3d_affine_tool $WDGLOBAL/tse_global_long_${side}_RAS.mat \
+        -inv -o $WDGLOBAL/tse_global_long_${side}_RAS_inv.mat \
+        -sqrt -o $WDGLOBAL/tse_global_long_${side}_RAS_halfinv.mat -inv \
+        -o $WDGLOBAL/tse_global_long_${side}_RAS_half.mat
+      # Create halfway space image and reslice both images to the halfway space
+
+      c3d $BLTRIM -set-sform $WDGLOBAL/tse_${side}_hwspace.mat \
+        $BLTRIM -reslice-matrix $WDGLOBAL/tse_global_long_${side}_RAS_halfinv.mat \
+        -o  $WDGLOBAL/tse_${side}_hwdef.nii.gz -o $WDGLOBAL/resliced_tse_global_${side}_bl_to_hw.nii.gz
+      c3d $WDGLOBAL/tse_${side}_hwdef.nii.gz $FUTRIM \
+        -reslice-matrix $WDGLOBAL/tse_global_long_${side}_RAS_half.mat \
+        -o $WDGLOBAL/resliced_tse_global_${side}_fu_to_hw.nii.gz
+
+
+    fi
+
 done
 

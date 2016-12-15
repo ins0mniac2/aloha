@@ -73,7 +73,7 @@ ALOHA_REG_DEFTYPE_MPRAGE=3 # Whether 2D or 3D registration is used. Change it on
 ALOHA_REG_DEFTYPE_TSE=2
 ALOHA_REG_INITTYPE="chunk" # How the initial alignment is done DO NOT CHANGE
 ALOHA_REG_USEMASK=1 # DO NOT CHANGE
-ALOHA_REG_USEDEFMASK=1 # DO NOT CHANGE
+ALOHA_REG_USEDEFMASK=false # DO NOT CHANGE
 ALOHA_REG_MASKRAD=3 # DO NOT CHANGE
 ALOHA_REG_RESAMPLE="0" # DO NOT CHANGE
 ALOHA_REG_RFIT=0 # DO NOT CHANGE
@@ -86,6 +86,11 @@ ALOHA_REG_ALTMODESEG=false # DO NOT CHANGE
 ALOHA_REG_DOMPSUB=0 # DO NOT CHANGE
 ALOHA_REG_SEGALT=orig # DO NOT CHANGE
 ALOHA_REG_ANTSVER=v4 # DO NOT CHANGE
+# Mask radius for dilating mask and trimming for T1
+ALOHA_REG_MPMASKRAD=10
+ALOHA_REG_MPTRIM=24
+ALOHA_REG_TSEMASKRAD=10
+ALOHA_REG_TSETRIM=24
 
 # ------------------------------------------------
 # ALOHA_MEASURE longitudinal measurement parameters
@@ -111,7 +116,7 @@ ALOHA_MEASURE_CLEANALL=true # DO NOT CHANGE
 
 # The number of iterations for ANTS when registering ALOHA_BL_MPRAGE and ALOHA_FU_MPRAGE
 # This is one of the main parameters affecting the runtime of the program.
-ALOHA_MPRAGE_ANTS_ITER="60x20x0"
+ALOHA_MPRAGE_ANTS_ITER="1200x1200x100"
 
 # The amount of dilation applied to the average hippocampus mask in order to
 # create a registration mask.

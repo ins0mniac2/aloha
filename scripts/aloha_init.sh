@@ -29,6 +29,7 @@ set -x -e
 # Read the library
 source ${ALOHA_ROOT?}/scripts/aloha_lib.sh
 
+echo "Script: $0"
 # Verify all the necessary inputs
 cat <<-BLOCK1
 	Script: aloha_init.sh
@@ -54,7 +55,7 @@ if [ "$ALOHA_REG_INITTYPE" == "chunk" ]; then
   # Register T1 followup to T1 baseline
   flirt -usesqform -v -ref $ALOHA_BL_MPRAGE -in $ALOHA_FU_MPRAGE \
     -omat $WDINIT/mprage_long.mat -out $WDINIT/mprage_fu_to_bl_resliced.nii.gz -dof 9
-  c3d_affine_tool -ref $ALOHA_BL_MPRAGE -src $ALOHA_BL_MPRAGE \
+  c3d_affine_tool -ref $ALOHA_BL_MPRAGE -src $ALOHA_FU_MPRAGE \
     ${WDINIT}/mprage_long.mat -fsl2ras -o ${WDINIT}/mprage_long_RAS.mat
   c3d_affine_tool ${WDINIT}/mprage_long_RAS.mat -inv -o ${WDINIT}/mprage_long_RAS_inv.mat
   
@@ -100,9 +101,9 @@ if [ "$ALOHA_REG_INITTYPE" == "chunk" ]; then
       ${WDINIT}/mprage_long_RAS.mat ${WDINIT}/fu_mprage_tse_RAS.mat -inv -o ${WDINIT}/fu_tse_mprage_RAS.mat -mult -o ${WDINIT}/fu_tse_bl_mprage_RAS.mat \
       -mult -o ${WDINIT}/tse_long_RAS.mat
     c3d_affine_tool -ref $ALOHA_BL_TSE -src $ALOHA_FU_TSE ${WDINIT}/tse_long_RAS.mat -ras2fsl -o ${WDINIT}/tse_long.mat
-    c3d_affine_tool ${WDINIT}/tse_long_RAS.mat -inv ${WDINIT}/tse_long_RAS_inv.mat
+    c3d_affine_tool ${WDINIT}/tse_long_RAS.mat -inv -o ${WDINIT}/tse_long_RAS_inv.mat
     c3d_affine_tool ${WDINIT}/bl_mprage_tse_RAS.mat -inv -o ${WDINIT}/bl_mprage_tse_RAS_inv.mat
-    c3d_affine_tool ${WDINIT}/bl_mprage_tse_RAS.mat -oitk -o ${WDINIT}/bl_mprage_tse_RAS_itk.txt
+    c3d_affine_tool ${WDINIT}/bl_mprage_tse_RAS.mat -oitk ${WDINIT}/bl_mprage_tse_RAS_itk.txt
 
     #Initial resliced image for QA
     flirt -usesqform -v -ref $ALOHA_BL_TSE  -in $ALOHA_FU_TSE -out ${WDINIT}/resliced_init_flirt.nii.gz -init ${WDINIT}/tse_long.mat -applyxfm

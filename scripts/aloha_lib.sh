@@ -34,6 +34,8 @@ if [[ ! $ALOHA_ROOT ]]; then
   exit -1;
 fi
 
+echo "Script: $0"
+
 # Get the architecture and check ability to run binaries
 ARCH=$(uname);
 ALOHA_BIN=$ALOHA_ROOT/ext/$ARCH/bin

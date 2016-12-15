@@ -9,7 +9,7 @@ if [ -f $FUGRAY -a -f $BLGRAY ]; then
 
 	# Reslice T1 into space of T2 chunk
 	c3d ${WDIR}/tse_fu_iso.nii.gz $FUMPGRAY  -reslice-identity -o ${WDIR}/mprage_to_tse_fu_iso.nii.gz
-
+:<<'COMM'
 	# Run flirt -usesqform 
 	# TODO The searchx/y/z parameters need to be -4 4 for FCD012 to work -- fix this, i mean do all subjects with
 	# -4 4 and hope they all work 
@@ -34,6 +34,22 @@ if [ -f $FUGRAY -a -f $BLGRAY ]; then
 
 	c3d_affine_tool -src ${WDIR}/mprage_to_tse_fu_iso.nii.gz -ref ${WDIR}/tse_fu_iso.nii.gz ${WDIR}/fu_mprage_tse.mat \
   		-fsl2ras -o ${WDIR}/fu_mprage_tse_RAS.mat
+COMM
+      # Use ANTs instead of flirt
+      /data/picsl/avants/bin/ants/antsRegistration -d 3 \
+      -m Mattes[  $WDIR/tse_fu_iso.nii.gz, $WDIR/mprage_to_tse_fu_iso.nii.gz , 1 , 32, random , 0.1 ] \
+      -t Rigid[ 0.2 ] \
+      -c [1000x1000x1000,1.e-7,20]  \
+      -s 4x2x0  \
+      -f 4x2x1 -l 1 \
+      -r [ $WDIR/tse_fu_iso.nii.gz, $WDIR/mprage_to_tse_fu_iso.nii.gz , 1 ] \
+      -a 1 \
+      -o [ $WDIR/fu_mprage_tse, $WDIR/mprage_to_tse_fu_iso_resliced.nii.gz, $WDIR/mprage_to_tse_fu_iso_resliced_inverse.nii.gz ]
+    ConvertTransformFile 3 $WDIR/fu_mprage_tse0GenericAffine.mat \
+        $WDIR/fu_mprage_tse_RAS.mat --hm
+
+
+
 fi
 
 # Register T1 followup to T1 baseline
@@ -49,6 +65,7 @@ if [ -f $FUGRAY -a -f $BLGRAY ]; then
 	c3d ${WDIR}/tse_bl_iso.nii.gz $BLMPGRAY  -reslice-identity -o ${WDIR}/mprage_to_tse_bl_iso.nii.gz
 
 
+:<<'BLCOMM'
 	# Run flirt -usesqform 
 	searchrange="-5 5"
 	flirt -usesqform -v -in ${WDIR}/mprage_to_tse_bl_iso.nii.gz -ref ${WDIR}/tse_bl_iso.nii.gz -omat ${WDIR}/bl_mprage_tse.mat \
@@ -69,8 +86,20 @@ if [ -f $FUGRAY -a -f $BLGRAY ]; then
 
 	c3d_affine_tool -src  ${WDIR}/mprage_to_tse_bl_iso.nii.gz -ref ${WDIR}/tse_bl_iso.nii.gz ${WDIR}/bl_mprage_tse.mat \
   		-fsl2ras -o ${WDIR}/bl_mprage_tse_RAS.mat
+BLCOMM
 
-
+      # Use ANTs instead of flirt
+      /data/picsl/avants/bin/ants/antsRegistration -d 3 \
+      -m Mattes[  $WDIR/tse_bl_iso.nii.gz, $WDIR/mprage_to_tse_bl_iso.nii.gz , 1 , 32, random , 0.1 ] \
+      -t Rigid[ 0.2 ] \
+      -c [1000x1000x1000,1.e-7,20]  \
+      -s 4x2x0  \
+      -f 4x2x1 -l 1 \
+      -r [ $WDIR/tse_bl_iso.nii.gz, $WDIR/mprage_to_tse_bl_iso.nii.gz , 1 ] \
+      -a 1 \
+      -o [ $WDIR/bl_mprage_tse, $WDIR/mprage_to_tse_bl_iso_resliced.nii.gz, $WDIR/mprage_to_tse_bl_iso_resliced_inverse.nii.gz ]
+    ConvertTransformFile 3 $WDIR/bl_mprage_tse0GenericAffine.mat \
+        $WDIR/bl_mprage_tse_RAS.mat --hm
 	# Combine the 3 transformations above to get initial T2 longitudinal transform
 	#convert_xfm -omat ${WDIR}/fu_tse_bl_mprage.mat -concat ${WDIR}/mprage_long.mat ${WDIR}/fu_tse_mprage.mat  
 	#convert_xfm -omat ${WDIR}/bl_mprage_tse.mat -inverse ${WDIR}/bl_tse_mprage.mat
