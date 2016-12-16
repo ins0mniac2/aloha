@@ -109,6 +109,7 @@ for side in $side; do
     fi
 
   # Registration
+:<<'NOT1'
   antsRegistration --dimensionality 3 $maskopt \
     --initial-fixed-transform $WDDEF/mprage_global_long_${side}_omRAS_half_inv_itk.txt \
     --initial-moving-transform $WDDEF/mprage_global_long_${side}_omRAS_half_itk.txt \
@@ -118,6 +119,7 @@ for side in $side; do
     -c [ $ALOHA_MPRAGE_ANTS_ITER, 1e-08,10 ] \
     -s 2x1x0vox  -f 4x2x1 | tee $WDDEF/mp_ants_output_3d_${side}.txt;
  
+NOT1
 
   # Split the warp field for later use with mesh utilities which do not support multi-component images
   c3d -mcs $WDDEF/mp_antsreg3d_${side}1Warp.nii.gz -oo $WDDEF/mp_antsreg3d_${side}Warpxvec.nii.gz  $WDDEF/mp_antsreg3d_${side}Warpyvec.nii.gz  $WDDEF/mp_antsreg3d_${side}Warpzvec.nii.gz
@@ -165,7 +167,7 @@ for side in $side; do
       -set-sform $WDDEF/tse_${side}_om_hwspace.mat \
       $BLTRIMDEF -dilate 1 20x20x20mm -reslice-matrix $WDDEF/tse_global_long_${side}_omRAS_half_inv.mat -o $HWTRIMDEF \
       $HWTRIMDEF  $BLTRIM -reslice-matrix $WDDEF/tse_global_long_${side}_omRAS_half_inv.mat -o $WDDEF/bltrim_${side}_to_hw.nii.gz \
-      $HWTRIMDEF  $FUTRIMOM -reslice-matrix $WDDEF/tse_global_long_${side}_omRAS_half.mat -o $WDDEF/futrim_om_${side}to_hw.nii.gz 
+      $HWTRIMDEF  $FUTRIMOM -reslice-matrix $WDDEF/tse_global_long_${side}_omRAS_half.mat -o $WDDEF/futrim_om_${side}_to_hw.nii.gz 
 
   
     # Use mask in registration or not
@@ -174,22 +176,82 @@ for side in $side; do
     else
       maskopt=""
     fi
-:<<MAKE2D
     # Registration
+:<<'NO3D'
+    # Also run the 3D registration
     antsRegistration --dimensionality 3 $maskopt \
-      --initial-fixed-transform $WDDEF/mprage_global_long_${side}_omRAS_half_inv_itk.txt \
-      --initial-moving-transform $WDDEF/mprage_global_long_${side}_omRAS_half_itk.txt \
-      -o [ $WDDEF/mp_antsreg3d_${side} , ${WDDEF}/fumptrim_om_to_hw_warped_3d_${side}.nii.gz ] \
+      --initial-fixed-transform $WDDEF/tse_global_long_${side}_omRAS_half_inv_itk.txt \
+      --initial-moving-transform $WDDEF/tse_global_long_${side}_omRAS_half_itk.txt \
+      -o [ $WDDEF/tse_antsreg3d_${side} , ${WDDEF}/futrim_om_to_hw_warped_3d_${side}.nii.gz ] \
       -t SyN[ $ALOHA_REG_ASTEPSIZE , $ALOHA_REG_REGUL1 , $ALOHA_REG_REGUL2  ] \
-      -m Mattes[$BLMPTRIM,$FUMPTRIMOM,1,32,Regular,0.25] \
+      -m Mattes[$BLTRIM,$FUTRIMOM,1,32,Regular,0.25] \
       -c [ $ALOHA_MPRAGE_ANTS_ITER, 1e-08,10 ] \
-      -s 2x1x0vox  -f 4x2x1 | tee $WDDEF/mp_ants_output_3d_${side}.txt;
+      -s 2x1x0vox  -f 4x2x1 | tee $WDDEF/tse_ants_output_3d_${side}.txt;
  
-
+    # Run the 3D resgistration without origin match, to use for pointwise atrophy analysis
+    c3d_affine_tool $WDGLOBAL/tse_global_long_${side}_RAS_half.mat -oitk $WDGLOBAL/tse_global_long_${side}_RAS_half_itk.txt
+    c3d_affine_tool $WDGLOBAL/tse_global_long_${side}_RAS_halfinv.mat -oitk $WDGLOBAL/tse_global_long_${side}_RAS_halfinv_itk.txt
+    antsRegistration --dimensionality 3 $maskopt \
+      --initial-fixed-transform $WDGLOBAL/tse_global_long_${side}_RAS_halfinv_itk.txt \
+      --initial-moving-transform $WDGLOBAL/tse_global_long_${side}_RAS_half_itk.txt \
+      -o [ $WDDEF/tse_antsreg3d_${side}_noom , ${WDDEF}/futrim_to_hw_warped_3d_${side}_noom.nii.gz ] \
+      -t SyN[ $ALOHA_REG_ASTEPSIZE , $ALOHA_REG_REGUL1 , $ALOHA_REG_REGUL2  ] \
+      -m Mattes[$BLTRIM,$FUTRIM,1,32,Regular,0.25] \
+      -c [ $ALOHA_MPRAGE_ANTS_ITER, 1e-08,10 ] \
+      -s 2x1x0vox  -f 4x2x1 | tee $WDDEF/tse_ants_output_3d_${side}_noom.txt;
+ 
     # Split the warp field for later use with mesh utilities which do not support multi-component images
-    c3d -mcs $WDDEF/mp_antsreg3d_${side}1Warp.nii.gz -oo $WDDEF/mp_antsreg3d_${side}Warpxvec.nii.gz  $WDDEF/mp_antsreg3d_${side}Warpyvec.nii.gz  $WDDEF/mp_antsreg3d_${side}Warpzvec.nii.gz
+    c3d -mcs $WDDEF/tse_antsreg3d_${side}1Warp.nii.gz -oo $WDDEF/tse_antsreg3d_${side}Warpxvec.nii.gz  $WDDEF/tse_antsreg3d_${side}Warpyvec.nii.gz  $WDDEF/tse_antsreg3d_${side}Warpzvec.nii.gz
 
-MAKE2D
+NO3D
+
+# :<<MAKE2D
+    # How many slices ?
+    zsize=`c3d $HWTRIMDEF -info | cut -f 1 -d ";" | cut -f 3 -d "," | sed -e 's/]//g' -e 's/ //g'`;
+    for ((i=0; i < ${zsize}; i++)); do
+      c3d $HWTRIMDEF -slice z $i -o $WDDEF/hwtrimdef_${side}_${i}.nii.gz
+      c3d $WDDEF/bltrim_${side}_to_hw.nii.gz -slice z $i -o $WDDEF/bltrim_${side}_to_hw_${i}.nii.gz
+      c3d $WDDEF/futrim_om_${side}_to_hw.nii.gz -slice z $i -o $WDDEF/futrim_om_${side}_to_hw_${i}.nii.gz
+
+      # Orientation is de-obliqued here. TODO read the code instead of hard coding
+      # c3d $WDDEF/hwtrimdef_${side}_${i}.nii.gz  -orient RIA -o $WDDEF/hwtrimdef_${side}_${i}.nii.gz
+      antsRegistration --dimensionality 2 $maskopt \
+        -o [ $WDDEF/tse_antsreg2d_${side}_${i}, ${WDDEF}/futrim_om_to_hw_warped_2d_${side}_${i}.nii.gz ] \
+        -t SyN[ $ALOHA_REG_ASTEPSIZE , $ALOHA_REG_REGUL1 , $ALOHA_REG_REGUL2 ] \
+        -m Mattes[$WDDEF/bltrim_${side}_to_hw_${i}.nii.gz,$WDDEF/futrim_om_${side}_to_hw_${i}.nii.gz,1,32,Regular,0.25] \
+        -c [ $ALOHA_TSE_ANTS_ITER, 1e-08,10 ] \
+        -s 2x1x0vox  -f 4x2x1 | tee $WDDEF/tse_ants_output_2d_${side}_${i}.txt
+
+      # Fix matrix
+      c3d $WDDEF/hwtrimdef_${side}_${i}.nii.gz \
+        ${WDDEF}/futrim_om_to_hw_warped_2d_${side}_${i}.nii.gz -copy-transform \
+        -o ${WDDEF}/futrim_om_to_hw_warped_2d_${side}_${i}.nii.gz
+
+      for fn in $WDDEF/tse_antsreg2d_${side}_${i}0Warp.nii.gz $WDDEF/tse_antsreg2d_${side}_${i}0InverseWarp.nii.gz; do
+        c3d $WDDEF/hwtrimdef_${side}_${i}.nii.gz -popas A -mcs $fn \
+          -foreach -insert A 1 -copy-transform -endfor \
+          -omc $fn
+      done
+
+      echo "Registration for slice $i is done"
+  
+      # Split the warp field for later use with mesh utilities which do not support multi-component images
+      c2d -mcs $WDDEF/tse_antsreg2d_${side}_${i}0Warp.nii.gz \
+        -oo $WDDEF/tse_antsreg2d_${side}_${i}Warpxvec.nii.gz \
+        $WDDEF/tse_antsreg2d_${side}_${i}Warpyvec.nii.gz \
+
+      c2d -mcs $WDDEF/tse_antsreg2d_${side}_${i}0InverseWarp.nii.gz \
+        -oo $WDDEF/tse_antsreg2d_${side}_${i}InverseWarpxvec.nii.gz \
+        $WDDEF/tse_antsreg2d_${side}_${i}InverseWarpyvec.nii.gz \
+
+      for fn in $WDDEF/tse_antsreg2d_${side}_${i}*Warp?vec.nii.gz ; do
+        c3d $WDDEF/hwtrimdef_${side}_${i}.nii.gz -popas A -mcs $fn \
+          -foreach -insert A 1 -copy-transform -endfor \
+          -omc $fn
+      done
+    done
+    
+# MAKE2D
  fi
 
 done

@@ -117,6 +117,7 @@ ALOHA_MEASURE_CLEANALL=true # DO NOT CHANGE
 # The number of iterations for ANTS when registering ALOHA_BL_MPRAGE and ALOHA_FU_MPRAGE
 # This is one of the main parameters affecting the runtime of the program.
 ALOHA_MPRAGE_ANTS_ITER="1200x1200x100"
+ALOHA_TSE_ANTS_ITER="50x50x100"
 
 # The amount of dilation applied to the average hippocampus mask in order to
 # create a registration mask.
