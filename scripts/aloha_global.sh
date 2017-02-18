@@ -107,22 +107,22 @@ for side in $side; do
   # Do the registration
   antsRegistration -d 3 -o [$WDGLOBAL/mprage_global_long_${side},$WDGLOBAL/resliced_mprage_global_long_${side}_ants.nii.gz] \
     -r [$BLMPTRIM,$FUMPTRIM,1] \
-    -t Translation[0.1] -f 4x2x1 -s 2x1x0 -c [1200x1200x50,1e-08,10] -l 1 -u 1 -w [0.0,0.995] \
+    -t Translation[0.1] -f 4x2x1 -s 2x1x0 -c [ 1200x1200x50,1e-08,10 ] -l 1 -u 1 -w [0.0,0.995] \
     -m Mattes[$BLMPTRIM,$FUMPTRIM,1,32,Regular,0.25] \
-    -t Rigid[0.1] -f 4x2x1 -s 2x1x0 -c [1200x1200x50,1e-08,10] -l 1 -u 1 -w [0.0,0.995] \
+    -t Rigid[0.1] -f 4x2x1 -s 2x1x0 -c [ 1200x1200x50,1e-08,10 ] -l 1 -u 1 -w [0.0,0.995] \
     -m Mattes[$BLMPTRIM,$FUMPTRIM,1,32,Regular,0.25] \
-    -t Similarity[0.1] -f 4x2x1 -s 2x1x0 -c [1200x1200x50,1e-08,10] -l 1 -u 1 -w [0.0,0.995] \
+    -t Similarity[0.1] -f 4x2x1 -s 2x1x0 -c [ 1200x1200x50,1e-08,10 ] -l 1 -u 1 -w [0.0,0.995] \
     -m Mattes[$BLMPTRIM,$FUMPTRIM,1,32,Regular,0.25] \
     -z 0
 
   if [[ $ALOHA_USE_TSE ]]; then
     antsRegistration -d 3 -o [$WDGLOBAL/tse_global_long_${side},$WDGLOBAL/resliced_tse_global_long_${side}_ants.nii.gz] \
       -r [$BLTRIM,$FUTRIM,1] \
-      -t Translation[0.1] -f 4x2x1 -s 2x1x0 -c [1200x1200x50,1e-08,10] -l 1 -u 1 -w [0.0,0.995] \
+      -t Translation[0.1] -f 4x2x1 -s 2x1x0 -c [ 1200x1200x50,1e-08,10 ] -l 1 -u 1 -w [0.0,0.995] \
       -m Mattes[$BLTRIM,$FUTRIM,1,32,Regular,0.25] \
-      -t Rigid[0.1] -f 4x2x1 -s 2x1x0 -c [1200x1200x50,1e-08,10] -l 1 -u 1 -w [0.0,0.995] \
+      -t Rigid[0.1] -f 4x2x1 -s 2x1x0 -c [ 1200x1200x50,1e-08,10 ] -l 1 -u 1 -w [0.0,0.995] \
       -m Mattes[$BLTRIM,$FUTRIM,1,32,Regular,0.25] \
-      -t Similarity[0.1] -f 4x2x1 -s 2x1x0 -c [1200x1200x50,1e-08,10] -l 1 -u 1 -w [0.0,0.995] \
+      -t Similarity[0.1] -f 4x2x1 -s 2x1x0 -c [ 1200x1200x50,1e-08,10 ] -l 1 -u 1 -w [0.0,0.995] \
       -m Mattes[$BLTRIM,$FUTRIM,1,32,Regular,0.25] \
       -z 0
 

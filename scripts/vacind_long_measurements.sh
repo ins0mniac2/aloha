@@ -862,7 +862,7 @@ NOMATLAB
     echo $id $side $INITTYPE $DEFTYPE $METRIC $GLOBALREGPROG $USEMASK $SYMMTYPE $REGTYPE $USEDEFMASK $MASKRAD $i ${SFTBL[i]} ${SFTFU[i]} $ATR $grp >> $THKFILE
   done
 
-else # 2d mesh
+else # 2D mesh
   
   if [ "$RIGIDMODE" == "HW" ]; then
     zsize=`c3d $HWSPACE -info | cut -f 1 -d ";" | cut -f 3 -d "," | sed -e 's/]//g' -e 's/ //g'`;
