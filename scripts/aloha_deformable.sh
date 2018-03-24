@@ -248,7 +248,7 @@ for side in $side; do
 
       # TODO handle properly. This is a terrible hack. When one image is empty like at the boundary slices, ANTS bails out with NaNs in energy
       # without any warning. If this happens warp files are not generated. So generate fake zero warp files
-      if [ ! -f $WDIR/ants/antsreg_${i}Warpxvec.nii.gz ]; then
+      if [ ! -f $WDDEF/tse_antsreg2d_${side}_${i}0Warp.nii.gz ]; then
       c3d $WDDEF/bltrim_${side}_to_hw_${i}_canon.nii.gz -dup -scale -1 -add -dup \
         -omc $WDDEF/tse_antsreg2d_${side}_${i}0Warp.nii.gz \
         -omc $WDDEF/tse_antsreg2d_${side}_${i}0InverseWarp.nii.gz

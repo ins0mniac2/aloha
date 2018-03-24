@@ -24,7 +24,7 @@
 #
 #######################################################################
 
-set -x -e
+set -x 
 
 # Read the library
 source ${ALOHA_ROOT?}/scripts/aloha_lib.sh
@@ -119,7 +119,9 @@ for side in $side; do
     # Label map to describe the ROIs (possibly combinations thereof as well) over which to measure change
     # Format: Label1:ROI1,ROI2;Label2:ROI1;Label2:ROI1,ROI2,ROI4;
     P_LABELMAP="0:0;1:1;2:2;3:3;4:4;5:8;6:10;7:11;8:12;9:13;10:1,2,4;11:11,12;12:1,2,3,4,7;"
-    P_LABELSTR=(BG CA1 CA2 DG CA3 SUB ERC BA35 BA36 PHC CA PRC T2HIPP)
+    P_LABELSTR=(BG  CA1 CA2 DG  CA3 SUB ERC  BA35 BA36 PHC  CA       PRC   T2HIPP)
+#    P_LABELMAP="0:0;1:1;2:2;3:3;4:4;5:8;6:9;7:11;8:12;9:1,2,4;10:11,12;11:1,2,3,4,7;"
+#    P_LABELSTR=(BG CA1  CA2 DG  CA3 SUB ERC BA35 BA36 CA      PRC      T2HIPP)
     map=($(echo $P_LABELMAP | sed -e "s/;/ /g"))
     nROI=${#map[*]}
     nl=nROI
@@ -202,6 +204,8 @@ for side in $side; do
     # For each slice
     for ((i=0; i < ${zsize}; i++)) do
 
+:<<'NOSPLIT'
+      ############### We don't need to do this, just get the segmentation sliced directly
       # Create probability map of each label on each slice
       for ((l=0; l < ${#llist[*]}; l++)); do 
         sf=`printf %02d ${llist[l]}` 
@@ -209,6 +213,8 @@ for side in $side; do
       done
       # Vote to create segmentation for this slice
       c2d ${TMPDIR}/labelhw??_${i}_${side}.nii.gz -vote -o ${WDRES}/seghw_${side}_${i}.nii.gz
+NOSPLIT
+      c3d ${WDRES}/seghw_${side} -slice z $i -o ${WDRES}/seghw_${side}_${i}.nii.gz
     done
 
     # Initialize volumes to zero
@@ -217,8 +223,11 @@ for side in $side; do
       SFFU[i]=0
     done
 
-    # For each slice
-    for ((i=0; i < ${zsize}; i++)) do
+    # For each slice except first and last
+    # for ((i=0; i < ${zsize}; i++)) do
+    zsize=$(expr $zsize - 1)
+    for ((i=1; i < ${zsize}; i++)) do
+
 
       # For each ROI
       for ((l=0; l<nl; l++)) ; do
