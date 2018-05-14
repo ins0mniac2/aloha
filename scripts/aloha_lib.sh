@@ -207,6 +207,43 @@ function vers()
   echo $ALOHA_VERSION_SVN
 }
 
+
+# Report the progress for a job - pass a float between 0 and 1 for the particular
+# job that has been qsubbed - this function takes care of figuring out where it
+# fits into the overall progress
+#
+# This function relies on ALOHA_JOB_INDEX, ALOHA_JOB_COUNT, ALOHA_BATCH_PSTART, ALOHA_BATCH_PEND
+# variables being properly set in order to assemble the progress, and on ALOHA_HOOK_SCRIPT to
+# report the actual progress
+function job_progress()
+{
+  # First implement only overall progress
+  # Read the reported progress
+  local PROGRESS=${1}
+:<<'NOCHUNK'
+
+  # The start and end for the current chunk
+  local CHUNK_PSTART CHUNK_PEND
+
+  # Figure out the start and end of this particular job
+  read CHUNK_PSTART CHUNK_PEND <<<$(
+    echo 1 | awk -v bs=$ALOHA_BATCH_PSTART -v be=$ALOHA_BATCH_PEND \
+      -v j=$ALOHA_JOB_INDEX -v n=$ALOHA_JOB_COUNT \
+      '{print bs + ((be - bs) * j) / n, bs + ((be - bs) * (j+1)) / n}')
+
+  # Send this information to the hook script
+  echo "CHUNK $ALOHA_BATCH_PSTART $ALOHA_BATCH_PEND"
+
+  echo 1 | awk -v bs=$ALOHA_BATCH_PSTART -v be=$ALOHA_BATCH_PEND \
+      -v j=$ALOHA_JOB_INDEX -v n=$ALOHA_JOB_COUNT \
+      '{print bs + ((be - bs) * j) / n, bs + ((be - bs) * (j+1)) / n}'
+  echo "CHUNK $CHUNK_PSTART $CHUNK_PEND $PROGRESS"
+NOCHUNK
+  # bash $ALOHA_HOOK_SCRIPT progress 0 1 $PROGRESS
+  echo progress $PROGRESS
+}
+
+
 # This function aligns the T1 and T2 images together. It takes two parameters: the 
 # path to a directory containing images mprage.nii.gz and tse.nii.gz, and a path to 
 # the directory where the output of the registration is stored.

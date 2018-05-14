@@ -201,3 +201,4 @@ for side in $side; do
 
 done
 
+job_progress 0.5

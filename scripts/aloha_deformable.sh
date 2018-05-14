@@ -309,3 +309,4 @@ NOGREEDY
 
 done
 
+job_progress 0.75

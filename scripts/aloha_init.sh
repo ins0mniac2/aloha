@@ -112,7 +112,7 @@ if [ "$ALOHA_REG_INITTYPE" == "chunk" ]; then
 
   fi
 
-
+  job_progress 0.25
 else
   echo "Unknown initialization type"
   exit -1

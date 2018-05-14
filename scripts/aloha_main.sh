@@ -54,6 +54,12 @@ function usage()
 		                    is best for when you have only a few segmentations and want them to run fast.
 		  -q OPTS           Pass in additional options to SGE's qsub. Also enables -Q option above.
 		  -t integer        Run only one stage (see below); also accepts range (e.g. -s 1-3)
+                  -H                Tell ALOHA to use external hooks for reporting progress, errors, and warnings.
+                                    The environment variables ALOHA_HOOK_SCRIPT must be set to point to the appropriate
+                                    script. For an example script with comments, see ashs_default_hook.sh
+                                    The purpose of the hook is to allow intermediary systems (e.g. XNAT) 
+                                    to monitor ALOHA performance. An optional ALOHA_HOOK_DATA variable can be set
+
 		  -h                Print help
 
 		stages:
@@ -82,6 +88,10 @@ unset ALOHA_SKIP_ANTS ALOHA_SKIP_RIGID ALOHA_TIDY ALOHA_SUBJID
 unset ALOHA_USE_QSUB ALOHA_SEG_LEFT ALOHA_SEG_RIGHT 
 unset ALOHA_BL_TSE ALOHA_BL_MPRAGE ALOHA_FU_TSE ALOHA_FU_MPRAGE ALOHA_BL_MPSEG_LEFT ALOHA_BL_TSESEG_LEFT ALOHA_BL_MPSEG_RIGHT ALOHA_BL_TSESEG_RIGHT ALOHA_USE_TSE
 
+# Set the default hook script - which does almost nothing
+unset ALOHA_USE_CUSTOM_HOOKS
+
+
 # Read the options
 while getopts "b:f:r:s:t:u:w:c:g:q:z:dhQ" opt; do
   case $opt in
@@ -97,6 +107,7 @@ while getopts "b:f:r:s:t:u:w:c:g:q:z:dhQ" opt; do
     t) ALOHA_BL_TSESEG_LEFT=$(readlink -f $OPTARG);;
     u) ALOHA_BL_TSESEG_RIGHT=$(readlink -f $OPTARG);;
     d) set -x -e;;    
+    H) ALOHA_USE_CUSTOM_HOOKS=1;;
     h) usage; exit 0;;
     q) ALOHA_USE_QSUB=1; QOPTS=$OPTARG;;
     Q) ALOHA_USE_QSUB=1;;
@@ -220,6 +231,55 @@ fi
 
 # Create the working directory and the dump directory
 mkdir -p $ALOHA_WORK $ALOHA_WORK/dump $ALOHA_WORK/final
+
+# Handle the hook scripts
+if [[ $ALOHA_USE_CUSTOM_HOOKS ]]; then
+
+  if [[ ! $ALOHA_HOOK_SCRIPT ]]; then
+    echo "ALOHA_HOOK_SCRIPT must be set when using -H option"; exit -2
+  fi
+
+  if [[ ! -f $ALOHA_HOOK_SCRIPT ]]; then
+    echo "ALOHA_HOOK_SCRIPT must point to a script file"; exit -2
+  fi
+
+  echo "Custom hooks requested with -H option"
+  echo "  Hook script (\$ALOHA_HOOK_SCRIPT): $ALOHA_HOOK_SCRIPT"
+  echo "  User data (\$ALOHA_HOOK_DATA): $ALOHA_HOOK_DATA"
+
+else
+
+  ALOHA_HOOK_SCRIPT=$ALOHA_ROOT/bin/aloha_default_hook.sh
+  unset ALOHA_HOOK_DATA
+
+fi
+
+# Check for the existence of the hook script
+if [[ ! -x $ASHS_HOOK_SCRIPT ]]; then
+  echo "ASHS hook script does not point to an executable (ASHS_HOOK_SCRIPT=$ASHS_HOOK_SCRIPT)"
+#  exit -2
+fi
+
+
+# Add code to make images into canonical orientations
+c3d $ALOHA_BL_MPRAGE -swapdim RPI -o  $ALOHA_WORK/mprage_bl.nii.gz
+ALOHA_BL_MPRAGE=$ALOHA_WORK/mprage_bl.nii.gz
+c3d $ALOHA_FU_MPRAGE -swapdim RPI -o  $ALOHA_WORK/mprage_fu.nii.gz
+ALOHA_FU_MPRAGE=$ALOHA_WORK/mprage_fu.nii.gz
+c3d $ALOHA_BL_MPSEG_LEFT -swapdim RPI -o $ALOHA_WORK/mprage_blseg_left.nii.gz
+ALOHA_BL_MPSEG_LEFT=$ALOHA_WORK/mprage_blseg_left.nii.gz
+c3d $ALOHA_BL_MPSEG_RIGHT -swapdim RPI -o $ALOHA_WORK/mprage_blseg_right.nii.gz
+ALOHA_BL_MPSEG_RIGHT=$ALOHA_WORK/mprage_blseg_right.nii.gz
+if [[ $ALOHA_BL_TSE || $ALOHA_FU_TSE || $ALOHA_BL_TSESEG_LEFT || $ALOHA_BL_TSESEG_RIGHT ]]; then
+  c3d $ALOHA_BL_TSE -swapdim RIA -o  $ALOHA_WORK/tse_bl.nii.gz
+  ALOHA_BL_TSE=$ALOHA_WORK/tse_bl.nii.gz
+  c3d $ALOHA_FU_TSE -swapdim RIA -o  $ALOHA_WORK/tse_fu.nii.gz
+  ALOHA_FU_TSE=$ALOHA_WORK/tse_fu.nii.gz
+  c3d $ALOHA_BL_TSESEG_LEFT -swapdim RIA -o $ALOHA_WORK/tse_blseg_left.nii.gz
+  ALOHA_BL_TSESEG_LEFT=$ALOHA_WORK/tse_blseg_left.nii.gz
+  c3d $ALOHA_BL_TSESEG_RIGHT -swapdim RIA -o $ALOHA_WORK/tse_blseg_right.nii.gz
+  ALOHA_BL_TSESEG_RIGHT=$ALOHA_WORK/tse_blseg_right.nii.gz
+fi
 
 # Run the stages of the script
 export ALOHA_ROOT ALOHA_WORK ALOHA_SKIP_ANTS ALOHA_SKIP_RIGID ALOHA_SUBJID ALOHA_CONFIG ALOHA_ATLAS

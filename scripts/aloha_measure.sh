@@ -290,3 +290,4 @@ NOSPLIT
 
 done
 
+job_progress 1.0
