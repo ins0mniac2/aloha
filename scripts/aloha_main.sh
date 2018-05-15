@@ -260,26 +260,27 @@ if [[ ! -x $ASHS_HOOK_SCRIPT ]]; then
 #  exit -2
 fi
 
-
+:<<'NOORIENT'
 # Add code to make images into canonical orientations
-c3d $ALOHA_BL_MPRAGE -swapdim RPI -o  $ALOHA_WORK/mprage_bl.nii.gz
+c3d_new $ALOHA_BL_MPRAGE -swapdim RPI -o  $ALOHA_WORK/mprage_bl.nii.gz
 ALOHA_BL_MPRAGE=$ALOHA_WORK/mprage_bl.nii.gz
-c3d $ALOHA_FU_MPRAGE -swapdim RPI -o  $ALOHA_WORK/mprage_fu.nii.gz
+c3d_new $ALOHA_FU_MPRAGE -swapdim RPI -o  $ALOHA_WORK/mprage_fu.nii.gz
 ALOHA_FU_MPRAGE=$ALOHA_WORK/mprage_fu.nii.gz
-c3d $ALOHA_BL_MPSEG_LEFT -swapdim RPI -o $ALOHA_WORK/mprage_blseg_left.nii.gz
+c3d_new $ALOHA_BL_MPSEG_LEFT -swapdim RPI -o $ALOHA_WORK/mprage_blseg_left.nii.gz
 ALOHA_BL_MPSEG_LEFT=$ALOHA_WORK/mprage_blseg_left.nii.gz
-c3d $ALOHA_BL_MPSEG_RIGHT -swapdim RPI -o $ALOHA_WORK/mprage_blseg_right.nii.gz
+c3d_new $ALOHA_BL_MPSEG_RIGHT -swapdim RPI -o $ALOHA_WORK/mprage_blseg_right.nii.gz
 ALOHA_BL_MPSEG_RIGHT=$ALOHA_WORK/mprage_blseg_right.nii.gz
 if [[ $ALOHA_BL_TSE || $ALOHA_FU_TSE || $ALOHA_BL_TSESEG_LEFT || $ALOHA_BL_TSESEG_RIGHT ]]; then
-  c3d $ALOHA_BL_TSE -swapdim RIA -o  $ALOHA_WORK/tse_bl.nii.gz
+  c3d_new $ALOHA_BL_TSE -swapdim RIA -o  $ALOHA_WORK/tse_bl.nii.gz
   ALOHA_BL_TSE=$ALOHA_WORK/tse_bl.nii.gz
-  c3d $ALOHA_FU_TSE -swapdim RIA -o  $ALOHA_WORK/tse_fu.nii.gz
+  c3d_new $ALOHA_FU_TSE -swapdim RIA -o  $ALOHA_WORK/tse_fu.nii.gz
   ALOHA_FU_TSE=$ALOHA_WORK/tse_fu.nii.gz
-  c3d $ALOHA_BL_TSESEG_LEFT -swapdim RIA -o $ALOHA_WORK/tse_blseg_left.nii.gz
+  c3d_new $ALOHA_BL_TSESEG_LEFT -swapdim RIA -o $ALOHA_WORK/tse_blseg_left.nii.gz
   ALOHA_BL_TSESEG_LEFT=$ALOHA_WORK/tse_blseg_left.nii.gz
-  c3d $ALOHA_BL_TSESEG_RIGHT -swapdim RIA -o $ALOHA_WORK/tse_blseg_right.nii.gz
+  c3d_new $ALOHA_BL_TSESEG_RIGHT -swapdim RIA -o $ALOHA_WORK/tse_blseg_right.nii.gz
   ALOHA_BL_TSESEG_RIGHT=$ALOHA_WORK/tse_blseg_right.nii.gz
 fi
+NOORIENT
 
 # Run the stages of the script
 export ALOHA_ROOT ALOHA_WORK ALOHA_SKIP_ANTS ALOHA_SKIP_RIGID ALOHA_SUBJID ALOHA_CONFIG ALOHA_ATLAS
