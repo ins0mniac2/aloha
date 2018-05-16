@@ -53,7 +53,7 @@ function usage()
 		                    (aloha_main) in a separate SGE job, rather than use the -q flag. The -q flag
 		                    is best for when you have only a few segmentations and want them to run fast.
 		  -q OPTS           Pass in additional options to SGE's qsub. Also enables -Q option above.
-		  -t integer        Run only one stage (see below); also accepts range (e.g. -s 1-3)
+		  -z integer        Run only one stage (see below); also accepts range (e.g. -s 1-3)
                   -H                Tell ALOHA to use external hooks for reporting progress, errors, and warnings.
                                     The environment variables ALOHA_HOOK_SCRIPT must be set to point to the appropriate
                                     script. For an example script with comments, see ashs_default_hook.sh
