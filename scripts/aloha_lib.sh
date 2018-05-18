@@ -239,8 +239,8 @@ function job_progress()
       '{print bs + ((be - bs) * j) / n, bs + ((be - bs) * (j+1)) / n}'
   echo "CHUNK $CHUNK_PSTART $CHUNK_PEND $PROGRESS"
 NOCHUNK
-  # bash $ALOHA_HOOK_SCRIPT progress 0 1 $PROGRESS
-  echo progress $PROGRESS
+  bash $ALOHA_HOOK_SCRIPT progress 0 1 $PROGRESS
+  # bash $ASHS_HOOK_SCRIPT progress $CHUNK_PSTART $CHUNK_PEND $PROGRESS
 }
 
 

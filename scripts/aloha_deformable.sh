@@ -310,3 +310,6 @@ NOGREEDY
 done
 
 job_progress 0.75
+  bash $ALOHA_HOOK_SCRIPT \
+      info "Stage 3 ${side} deformable registration complete"
+

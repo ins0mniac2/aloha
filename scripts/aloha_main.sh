@@ -93,7 +93,7 @@ unset ALOHA_USE_CUSTOM_HOOKS
 
 
 # Read the options
-while getopts "b:f:r:s:t:u:w:c:g:q:z:dhQ" opt; do
+while getopts "b:f:r:s:t:u:w:c:g:q:z:dhHQ" opt; do
   case $opt in
 
     b) ALOHA_BL_MPRAGE=$(readlink -f $OPTARG);;
@@ -255,8 +255,8 @@ else
 fi
 
 # Check for the existence of the hook script
-if [[ ! -x $ASHS_HOOK_SCRIPT ]]; then
-  echo "ASHS hook script does not point to an executable (ASHS_HOOK_SCRIPT=$ASHS_HOOK_SCRIPT)"
+if [[ ! -x $ALOHA_HOOK_SCRIPT ]]; then
+  echo "ALOHA hook script does not point to an executable (ALOHA_HOOK_SCRIPT=$ALOHA_HOOK_SCRIPT)"
 #  exit -2
 fi
 

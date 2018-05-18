@@ -291,3 +291,7 @@ NOSPLIT
 done
 
 job_progress 1.0
+
+  bash $ALOHA_HOOK_SCRIPT \
+      info "Stage 4 atrophy rate measurement ${side} complete"
+

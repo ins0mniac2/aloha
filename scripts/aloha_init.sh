@@ -113,6 +113,9 @@ if [ "$ALOHA_REG_INITTYPE" == "chunk" ]; then
   fi
 
   job_progress 0.25
+  bash $ALOHA_HOOK_SCRIPT \
+      info "Stage 1 initialization and bookkeeping complete"
+
 else
   echo "Unknown initialization type"
   exit -1
