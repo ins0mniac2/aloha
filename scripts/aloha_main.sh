@@ -302,6 +302,17 @@ if [[ ! $STAGE_END || ! $STAGE_START ]]; then
   exit -1;
 fi
 
+# Lengths of the different stages in terms of relative progress
+STAGE_PPOS=(0.0 0.2 0.4 0.8 1.0)
+
+# Names of the different stages
+STAGE_NAMES=(\
+  "Initialization and bookkeeping" \
+  "Global registration" \
+  "Deformable registration" \
+  "Measuring atrophy rate")
+
+
 # List of sides for the array qsub commands below
 SIDES="left right"
 
@@ -309,6 +320,23 @@ SIDES="left right"
 # STAGE_START=3
 # STAGE_END=3
 for ((STAGE=$STAGE_START; STAGE<=$STAGE_END; STAGE++)); do
+
+  # Figure out the progress range for the specified batch
+  ALOHA_BATCH_PSTART=${STAGE_PPOS[$((STAGE-1))]}
+  ALOHA_BATCH_PEND=${STAGE_PPOS[$STAGE]}
+  export ALOHA_BATCH_PSTART ALOHA_BATCH_PEND
+
+  # The desription of the current stage
+  STAGE_TEXT=${STAGE_NAMES[STAGE-1]}
+  echo "****************************************"
+  echo "Starting stage $STAGE: $STAGE_TEXT"
+  echo "****************************************"
+
+
+  # Send the informational message via hook
+  bash $ALOHA_HOOK_SCRIPT info "Started stage $STAGE: $STAGE_TEXT"
+
+
 
   case $STAGE in 
 
@@ -332,20 +360,6 @@ for ((STAGE=$STAGE_START; STAGE<=$STAGE_END; STAGE++)); do
     echo "Running stage 4: Measuring longitudinal change"
     qsubmit_single_array "aloha_stg4" "$SIDES"  $ALOHA_ROOT/scripts/aloha_measure.sh ;;
 
-    5)
-    # Bootstrap voting
-    echo "Running stage 5: Bootstrap label fusion" 
-    qsubmit_single_array "aloha_stg5" "$SIDES" $ALOHA_ROOT/bin/aloha_voting_qsub.sh 1 ;;
-
-    6)
-    # Final QA
-    echo "Running stage 6: Final QA"
-    qsubmit_sync "aloha_stg6" $ALOHA_ROOT/bin/aloha_finalqa_qsub.sh ;;
-  
-    7) 
-    # Statistics & Volumes
-    echo "Running stage 7: Statistics and Volumes"
-    qsubmit_sync "aloha_stg7" $ALOHA_ROOT/bin/aloha_extractstats_qsub.sh ;;
 
   esac  
 

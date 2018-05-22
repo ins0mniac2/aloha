@@ -111,6 +111,12 @@ function qsubmit_single_array()
   # Generate unique name to prevent clashing with qe
   local UNIQ_NAME=${NAME}_${$}
 
+  # Set the number of ASHS jobs that are currently running
+  ASHS_JOB_COUNT=$(echo $PARAM | wc -w | xargs)
+  ASHS_JOB_INDEX=0
+  export ASHS_JOB_COUNT ASHS_JOB_INDEX
+
+
   for p1 in $PARAM; do
 
     if [[ $ALOHA_USE_QSUB ]]; then
@@ -122,6 +128,8 @@ function qsubmit_single_array()
       fake_qsub ${NAME}_${p1} $* $p1
 
     fi
+
+    ASHS_JOB_INDEX=$((ASHS_JOB_INDEX+1))
   done
 
   # Wait for the jobs to be done
