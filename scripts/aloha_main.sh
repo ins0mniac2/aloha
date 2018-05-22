@@ -249,7 +249,7 @@ if [[ $ALOHA_USE_CUSTOM_HOOKS ]]; then
 
 else
 
-  ALOHA_HOOK_SCRIPT=$ALOHA_ROOT/bin/aloha_default_hook.sh
+  ALOHA_HOOK_SCRIPT=$ALOHA_ROOT/scripts/aloha_default_hook.sh
   unset ALOHA_HOOK_DATA
 
 fi

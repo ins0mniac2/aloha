@@ -112,7 +112,7 @@ if [ "$ALOHA_REG_INITTYPE" == "chunk" ]; then
 
   fi
 
-  job_progress 0.25
+  job_progress 1.0
   bash $ALOHA_HOOK_SCRIPT \
       info "Stage 1 initialization and bookkeeping complete"
 

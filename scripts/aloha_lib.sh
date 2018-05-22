@@ -93,6 +93,12 @@ function qsubmit_sync()
   local MYNAME=$1
   shift 1
 
+  # Set the number of ASHS jobs that are currently running
+  ALOHA_JOB_COUNT=1
+  ALOHA_JOB_INDEX=0
+  export ALOHA_JOB_COUNT ALOHA_JOB_INDEX
+
+
   if [[ $ALOHA_USE_QSUB ]]; then
     qsub $QOPTS -sync y -j y -o $ALOHA_WORK/dump -cwd -V -N $MYNAME $*
   else
@@ -112,9 +118,9 @@ function qsubmit_single_array()
   local UNIQ_NAME=${NAME}_${$}
 
   # Set the number of ASHS jobs that are currently running
-  ASHS_JOB_COUNT=$(echo $PARAM | wc -w | xargs)
-  ASHS_JOB_INDEX=0
-  export ASHS_JOB_COUNT ASHS_JOB_INDEX
+  ALOHA_JOB_COUNT=$(echo $PARAM | wc -w | xargs)
+  ALOHA_JOB_INDEX=0
+  export ALOHA_JOB_COUNT ALOHA_JOB_INDEX
 
 
   for p1 in $PARAM; do
@@ -129,7 +135,7 @@ function qsubmit_single_array()
 
     fi
 
-    ASHS_JOB_INDEX=$((ASHS_JOB_INDEX+1))
+    ALOHA_JOB_INDEX=$((ALOHA_JOB_INDEX+1))
   done
 
   # Wait for the jobs to be done
@@ -228,7 +234,7 @@ function job_progress()
   # First implement only overall progress
   # Read the reported progress
   local PROGRESS=${1}
-:<<'NOCHUNK'
+# :<<'NOCHUNK'
 
   # The start and end for the current chunk
   local CHUNK_PSTART CHUNK_PEND
@@ -246,9 +252,9 @@ function job_progress()
       -v j=$ALOHA_JOB_INDEX -v n=$ALOHA_JOB_COUNT \
       '{print bs + ((be - bs) * j) / n, bs + ((be - bs) * (j+1)) / n}'
   echo "CHUNK $CHUNK_PSTART $CHUNK_PEND $PROGRESS"
-NOCHUNK
-  bash $ALOHA_HOOK_SCRIPT progress 0 1 $PROGRESS
-  # bash $ASHS_HOOK_SCRIPT progress $CHUNK_PSTART $CHUNK_PEND $PROGRESS
+# NOCHUNK
+  # bash $ALOHA_HOOK_SCRIPT progress 0 1 $PROGRESS
+  bash $ALOHA_HOOK_SCRIPT progress $CHUNK_PSTART $CHUNK_PEND $PROGRESS
 }
 
 

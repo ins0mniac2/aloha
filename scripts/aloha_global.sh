@@ -201,7 +201,7 @@ for side in $side; do
 
 done
 
-job_progress 0.5
+job_progress 1
   bash $ALOHA_HOOK_SCRIPT \
       info "Stage 2 ${side} global registration complete"
 
