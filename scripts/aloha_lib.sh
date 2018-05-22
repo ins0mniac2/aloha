@@ -234,7 +234,6 @@ function job_progress()
   # First implement only overall progress
   # Read the reported progress
   local PROGRESS=${1}
-# :<<'NOCHUNK'
 
   # The start and end for the current chunk
   local CHUNK_PSTART CHUNK_PEND
@@ -252,7 +251,7 @@ function job_progress()
       -v j=$ALOHA_JOB_INDEX -v n=$ALOHA_JOB_COUNT \
       '{print bs + ((be - bs) * j) / n, bs + ((be - bs) * (j+1)) / n}'
   echo "CHUNK $CHUNK_PSTART $CHUNK_PEND $PROGRESS"
-# NOCHUNK
+
   # bash $ALOHA_HOOK_SCRIPT progress 0 1 $PROGRESS
   bash $ALOHA_HOOK_SCRIPT progress $CHUNK_PSTART $CHUNK_PEND $PROGRESS
 }
